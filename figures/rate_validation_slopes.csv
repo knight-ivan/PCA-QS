@@ -1,0 +1,7 @@
+metric,k,method,fitted,theory
+W2_exact,2,PCA-QS,-0.427,-0.5
+W2_exact,3,PCA-QS,-0.346,-0.333
+quantile_error,2,PCA-QS,-0.518,-0.5
+quantile_error,2,SRS,-0.506,-0.5
+quantile_error,3,PCA-QS,-0.514,-0.5
+quantile_error,3,SRS,-0.459,-0.5

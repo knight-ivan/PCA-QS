@@ -1,0 +1,139 @@
+\subsection{Imbalanced Datasets}
+\begin{table}[h]
+\centering\small
+\caption{Credit Card (UCI default): corrected discrepancies to the full data (mean over $1000$ replicates, top-$k$ PCA-score space, $k{=}7$, $m{=}2$). Lower is better; \textbf{bold} marks the method closer to the full data. The last column is the fraction of replicates on which PCA-QS is closer.}
+\label{tab:detail_creditcard}
+\begin{tabular}{lcccc}
+\toprule
+Metric & PCA-QS & SRS & diff $[95\%$ CI$]$ & Frac.\ PCA-QS closer \\
+\midrule
+Quantile error & $\mathbf{0.0257}$ & $0.0383$ & $-0.0125\;[-0.013,\,-0.012]$ & 0.957 \\
+KL & $\mathbf{0.0119}$ & $0.0123$ & $-0.000441\;[-0.000496,\,-0.000386]$ & 0.695 \\
+JS & $\mathbf{0.00368}$ & $0.00379$ & $-0.000109\;[-0.000124,\,-9.29\times 10^{-5}]$ & 0.675 \\
+Energy & $\mathbf{0.00387}$ & $0.00557$ & $-0.00171\;[-0.00182,\,-0.0016]$ & 0.867 \\
+MMD & $\mathbf{0.000972}$ & $0.00105$ & $-7.87\times 10^{-5}\;[-8.35\times 10^{-5},\,-7.4\times 10^{-5}]$ & 0.858 \\
+Mahalanobis & $\mathbf{0.0367}$ & $0.0648$ & $-0.0281\;[-0.0294,\,-0.0268]$ & 0.909 \\
+Pairwise $W_1$ & $\mathbf{0.255}$ & $0.259$ & $-0.00339\;[-0.0158,\,0.00897]$ & 0.512 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[h]
+\centering\small
+\caption{MAGIC Gamma Telescope: corrected discrepancies to the full data (mean over $1000$ replicates, top-$k$ PCA-score space, $k{=}4$, $m{=}5$). Lower is better; \textbf{bold} marks the method closer to the full data. The last column is the fraction of replicates on which PCA-QS is closer.}
+\label{tab:detail_magic}
+\begin{tabular}{lcccc}
+\toprule
+Metric & PCA-QS & SRS & diff $[95\%$ CI$]$ & Frac.\ PCA-QS closer \\
+\midrule
+Quantile error & $\mathbf{0.0234}$ & $0.0471$ & $-0.0237\;[-0.0245,\,-0.023]$ & 0.998 \\
+KL & $\mathbf{0.0128}$ & $0.0147$ & $-0.00187\;[-0.00201,\,-0.00173]$ & 0.807 \\
+JS & $\mathbf{0.00358}$ & $0.00404$ & $-0.000459\;[-0.000496,\,-0.000422]$ & 0.782 \\
+Energy & $\mathbf{0.00385}$ & $0.00674$ & $-0.00289\;[-0.0031,\,-0.00268]$ & 0.827 \\
+MMD & $\mathbf{0.000977}$ & $0.00147$ & $-0.000489\;[-0.000506,\,-0.000472]$ & 0.977 \\
+Mahalanobis & $\mathbf{0.0222}$ & $0.0596$ & $-0.0373\;[-0.0388,\,-0.0359]$ & 0.953 \\
+Pairwise $W_1$ & $\mathbf{0.149}$ & $0.16$ & $-0.0106\;[-0.0175,\,-0.00366]$ & 0.517 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Time-Series and Signal Data}
+\begin{table}[h]
+\centering\small
+\caption{EEG Eye State: corrected discrepancies to the full data (mean over $1000$ replicates, top-$k$ PCA-score space, $k{=}3$, $m{=}9$). Lower is better; \textbf{bold} marks the method closer to the full data. The last column is the fraction of replicates on which PCA-QS is closer.}
+\label{tab:detail_eeg}
+\begin{tabular}{lcccc}
+\toprule
+Metric & PCA-QS & SRS & diff $[95\%$ CI$]$ & Frac.\ PCA-QS closer \\
+\midrule
+Quantile error & $\mathbf{0.00704}$ & $0.0156$ & $-0.00858\;[-0.00891,\,-0.00825]$ & 0.988 \\
+KL & $\mathbf{0.0292}$ & $0.0295$ & $-0.000303\;[-0.000354,\,-0.000252]$ & 0.655 \\
+JS & $\mathbf{0.00949}$ & $0.00958$ & $-8.09\times 10^{-5}\;[-9.6\times 10^{-5},\,-6.59\times 10^{-5}]$ & 0.652 \\
+Energy & $\mathbf{0.000662}$ & $0.00154$ & $-0.000881\;[-0.000932,\,-0.00083]$ & 0.935 \\
+MMD & $\mathbf{0.000187}$ & $0.000598$ & $-0.000411\;[-0.000434,\,-0.000388]$ & 0.940 \\
+Mahalanobis & $\mathbf{0.0216}$ & $0.0375$ & $-0.0159\;[-0.0191,\,-0.0126]$ & 0.723 \\
+Pairwise $W_1$ & $\mathbf{0.179}$ & $0.23$ & $-0.0509\;[-0.0817,\,-0.02]$ & 0.587 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[h]
+\centering\small
+\caption{Epileptic Seizure: corrected discrepancies to the full data (mean over $1000$ replicates, top-$k$ PCA-score space, $k{=}4$, $m{=}4$). Lower is better; \textbf{bold} marks the method closer to the full data. The last column is the fraction of replicates on which PCA-QS is closer.
+\emph{Occupancy note:} the naive dynamic choice $k{=}21$ gives $m^{k}\gg r$ (most composite cells empty), and PCA-QS degrades to at best a tie; the occupancy-feasible $k{=}4$ above is the fair comparison.}
+\label{tab:detail_epileptic}
+\begin{tabular}{lcccc}
+\toprule
+Metric & PCA-QS & SRS & diff $[95\%$ CI$]$ & Frac.\ PCA-QS closer \\
+\midrule
+Quantile error & $\mathbf{0.0729}$ & $0.103$ & $-0.0305\;[-0.0324,\,-0.0286]$ & 0.851 \\
+KL & $\mathbf{0.0242}$ & $0.025$ & $-0.00087\;[-0.0011,\,-0.000641]$ & 0.577 \\
+JS & $\mathbf{0.00701}$ & $0.00722$ & $-0.000211\;[-0.000275,\,-0.000146]$ & 0.563 \\
+Energy & $\mathbf{0.00695}$ & $0.0108$ & $-0.00384\;[-0.00409,\,-0.00359]$ & 0.854 \\
+MMD & $\mathbf{0.00104}$ & $0.00172$ & $-0.000684\;[-0.000708,\,-0.000659]$ & 0.990 \\
+Mahalanobis & $\mathbf{0.0558}$ & $0.0752$ & $-0.0194\;[-0.0216,\,-0.0173]$ & 0.700 \\
+Pairwise $W_1$ & $\mathbf{0.636}$ & $0.688$ & $-0.0513\;[-0.0793,\,-0.0233]$ & 0.548 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Large-Scale Data}
+\begin{table}[h]
+\centering\small
+\caption{HIGGS: corrected discrepancies to the full data (mean over $1000$ replicates, top-$k$ PCA-score space, $k{=}13$, $m{=}2$). Lower is better; \textbf{bold} marks the method closer to the full data. The last column is the fraction of replicates on which PCA-QS is closer.}
+\label{tab:detail_higgs}
+\begin{tabular}{lcccc}
+\toprule
+Metric & PCA-QS & SRS & diff $[95\%$ CI$]$ & Frac.\ PCA-QS closer \\
+\midrule
+Quantile error & $\mathbf{0.0115}$ & $0.0132$ & $-0.00166\;[-0.00178,\,-0.00154]$ & 0.795 \\
+KL & $\mathbf{0.00145}$ & $0.00146$ & $-1.38\times 10^{-5}\;[-2.23\times 10^{-5},\,-5.25\times 10^{-6}]$ & 0.524 \\
+JS & $\mathbf{0.000395}$ & $0.000396$ & $-1.63\times 10^{-6}\;[-3.92\times 10^{-6},\,6.62\times 10^{-7}]$ & 0.506 \\
+Energy & $\mathbf{0.00501}$ & $0.0051$ & $-9.09\times 10^{-5}\;[-0.000164,\,-1.77\times 10^{-5}]$ & 0.534 \\
+MMD & $\mathbf{0.00099}$ & $0.00099$ & $-6.88\times 10^{-7}\;[-9.12\times 10^{-7},\,-4.64\times 10^{-7}]$ & 0.569 \\
+Mahalanobis & $\mathbf{0.0269}$ & $0.0348$ & $-0.00787\;[-0.0084,\,-0.00734]$ & 0.829 \\
+Pairwise $W_1$ & $0.178$ & $\mathbf{0.178}$ & $0.000193\;[-0.00752,\,0.00791]$ & 0.501 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[h]
+\centering\small
+\caption{Year Prediction MSD: corrected discrepancies to the full data (mean over $1000$ replicates, top-$k$ PCA-score space, $k{=}4$, $m{=}12$). Lower is better; \textbf{bold} marks the method closer to the full data. The last column is the fraction of replicates on which PCA-QS is closer.
+\emph{Occupancy note:} the naive dynamic choice $k{=}28$ gives $m^{k}\gg r$ (most composite cells empty), and PCA-QS degrades to at best a tie; the occupancy-feasible $k{=}4$ above is the fair comparison.}
+\label{tab:detail_yearprediction}
+\begin{tabular}{lcccc}
+\toprule
+Metric & PCA-QS & SRS & diff $[95\%$ CI$]$ & Frac.\ PCA-QS closer \\
+\midrule
+Quantile error & $0.019$ & $\mathbf{0.0162}$ & $0.00277\;[0.00255,\,0.003]$ & 0.200 \\
+KL & $0.000658$ & $\mathbf{0.00063}$ & $2.79\times 10^{-5}\;[2.31\times 10^{-5},\,3.28\times 10^{-5}]$ & 0.345 \\
+JS & $0.000192$ & $\mathbf{0.000185}$ & $6.41\times 10^{-6}\;[5.04\times 10^{-6},\,7.78\times 10^{-6}]$ & 0.378 \\
+Energy & $0.00625$ & $\mathbf{0.00587}$ & $0.000377\;[0.000216,\,0.000539]$ & 0.428 \\
+MMD & $\mathbf{0.00103}$ & $0.00103$ & $-4.5\times 10^{-6}\;[-1.03\times 10^{-5},\,1.31\times 10^{-6}]$ & 0.527 \\
+Mahalanobis & $\mathbf{0.00651}$ & $0.0112$ & $-0.0047\;[-0.00498,\,-0.00442]$ & 0.844 \\
+Pairwise $W_1$ & $\mathbf{0.367}$ & $0.38$ & $-0.0129\;[-0.0283,\,0.00259]$ & 0.516 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Feature Complexity (Text/NLP)}
+\begin{table}[h]
+\centering\small
+\caption{Online News Popularity: corrected discrepancies to the full data (mean over $1000$ replicates, top-$k$ PCA-score space, $k{=}4$, $m{=}6$). Lower is better; \textbf{bold} marks the method closer to the full data. The last column is the fraction of replicates on which PCA-QS is closer.
+\emph{Occupancy note:} the naive dynamic choice $k{=}17$ gives $m^{k}\gg r$ (most composite cells empty), and PCA-QS degrades to at best a tie; the occupancy-feasible $k{=}4$ above is the fair comparison.}
+\label{tab:detail_onlinenews}
+\begin{tabular}{lcccc}
+\toprule
+Metric & PCA-QS & SRS & diff $[95\%$ CI$]$ & Frac.\ PCA-QS closer \\
+\midrule
+Quantile error & $\mathbf{0.0196}$ & $0.0361$ & $-0.0164\;[-0.017,\,-0.0159]$ & 0.991 \\
+KL & $\mathbf{0.00835}$ & $0.00898$ & $-0.000625\;[-0.000673,\,-0.000576]$ & 0.788 \\
+JS & $\mathbf{0.00256}$ & $0.00272$ & $-0.000159\;[-0.000172,\,-0.000145]$ & 0.774 \\
+Energy & $\mathbf{0.00371}$ & $0.00459$ & $-0.000881\;[-0.000988,\,-0.000774]$ & 0.657 \\
+MMD & $\mathbf{0.000773}$ & $0.000974$ & $-0.000201\;[-0.000209,\,-0.000193]$ & 0.948 \\
+Mahalanobis & $\mathbf{0.014}$ & $0.0383$ & $-0.0243\;[-0.0256,\,-0.023]$ & 0.926 \\
+Pairwise $W_1$ & $\mathbf{0.211}$ & $0.237$ & $-0.0261\;[-0.0467,\,-0.00547]$ & 0.535 \\
+\bottomrule
+\end{tabular}
+\end{table}

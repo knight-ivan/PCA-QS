@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.ipynb_checkpoints/
+
+# figures/ summary CSVs + result figures ARE committed as the reproducibility records.
+
+# OS
+.DS_Store
+
+# Large / raw datasets (download from original sources)
+data/
+*.zip

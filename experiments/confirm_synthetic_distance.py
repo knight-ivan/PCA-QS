@@ -55,7 +55,7 @@ def occupancy_m(k, r, fixed=None):
     return max(2, m)
 
 
-def one_run(k, b, N, delta, seed, fixed_m=None):
+def one_run(k, b, N, delta, seed, fixed_m=None, space="pca"):
     """One independent replicate for component count k; returns two rows."""
     gen = np.random.default_rng([seed, k, b])
     X, _ = structure_fidelity_gmm(N, random_state=gen.integers(1 << 31))
@@ -67,16 +67,21 @@ def one_run(k, b, N, delta, seed, fixed_m=None):
     qi = qs.sample_indices(X, exact_size=r)
     H_N = qs.n_cells_
     si = srs_indices(len(X), r, random_state=int(gen.integers(1 << 31)))
+    # Strata come from the PCA scores; metrics are scored either in that PCA
+    # subspace (default) or in the original standardized feature space Xs.
+    Xs = (X - qs.mean_) / qs.scale_
+    score_on = sc if space == "pca" else Xs
     rows = []
     for meth, idx in (("PCA-QS", qi), ("SRS", si)):
-        kl, js = marginal_hist_kl_js(sc, sc[idx])
-        rows.append(dict(k=k, run=b, method=meth, m=m, H_N=H_N, r=r,
-                         quantile_error=quantile_error(sc, sc[idx]),
+        A, B = score_on, score_on[idx]
+        kl, js = marginal_hist_kl_js(A, B)
+        rows.append(dict(k=k, run=b, method=meth, m=m, H_N=H_N, r=r, space=space,
+                         quantile_error=quantile_error(A, B),
                          KL=kl, JS=js,
-                         energy=energy_distance(sc, sc[idx], random_state=0),
-                         MMD=mmd_rbf(sc, sc[idx], random_state=0),
-                         Mahalanobis=mahalanobis_mean(sc, sc[idx]),
-                         pairwise_W1=pairwise_w1(sc, sc[idx], 400, gen)))
+                         energy=energy_distance(A, B, random_state=0),
+                         MMD=mmd_rbf(A, B, random_state=0),
+                         Mahalanobis=mahalanobis_mean(A, B),
+                         pairwise_W1=pairwise_w1(A, B, 400, gen)))
     return rows
 
 
@@ -106,6 +111,8 @@ if __name__ == "__main__":
     ap.add_argument("--seed", type=int, default=2026)
     ap.add_argument("--fixed-m", type=int, default=None,
                     help="fixed bins per PC (default: occupancy-limited m with m^k<=r)")
+    ap.add_argument("--space", choices=["pca", "original"], default="pca",
+                    help="score metrics in the top-k PCA subspace (default) or the original standardized feature space")
     a = ap.parse_args()
     # dynamic-k config: smallest k explaining >=70% variance (standardized), the same rule the
     # real-data / classification / regression studies use. On this near-isotropic generator the
@@ -123,11 +130,12 @@ if __name__ == "__main__":
     mode = f"fixed m={a.fixed_m}" if a.fixed_m else "occupancy-limited m (m^k<=r)"
     print(f"running {len(tasks)} replicates on {a.jobs} workers [{mode}] ...", flush=True)
     results = Parallel(n_jobs=a.jobs, verbose=5)(
-        delayed(one_run)(k, b, a.N, 0.05, a.seed, a.fixed_m) for k, b in tasks)
+        delayed(one_run)(k, b, a.N, 0.05, a.seed, a.fixed_m, a.space) for k, b in tasks)
     df = pd.DataFrame([r for pair in results for r in pair])
-    df.to_csv(os.path.join(OUT, "confirm_synthetic_distance.csv"), index=False)
+    tag = "" if a.space == "pca" else "_origspace"
+    df.to_csv(os.path.join(OUT, f"confirm_synthetic_distance{tag}.csv"), index=False)
     summ = summarize(df)
-    summ.to_csv(os.path.join(OUT, "confirm_synthetic_distance_summary.csv"), index=False)
+    summ.to_csv(os.path.join(OUT, f"confirm_synthetic_distance{tag}_summary.csv"), index=False)
     pd.set_option("display.width", 170, "display.max_columns", 20)
     print("\n=== paired PCA-QS - SRS (negative diff => PCA-QS closer to full data) ===")
     print(summ.to_string(index=False, float_format=lambda x: f"{x:.4g}"))

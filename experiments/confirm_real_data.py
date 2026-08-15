@@ -5,8 +5,11 @@ For each dataset: standardize the numeric features, fit PCA, and compare PCA-QS
 (occupancy-limited bins) against SRS at an identical exact retained size, over
 several random subsampling replicates. Metrics (corrected definitions) are
 computed between the retained subset and the full data in the top-k PCA-score
-space. Reports, per dataset and metric, the mean PCA-QS and SRS values and the
-fraction of replicates on which PCA-QS is closer to the full data.
+space (``--space pca``, the default) or in the original standardized feature
+space (``--space original``); sampling strata always come from the PCA-score
+space, only the scoring space changes. Reports, per dataset and metric, the mean
+PCA-QS and SRS values and the fraction of replicates on which PCA-QS is closer to
+the full data.
 
 Datasets are read from --data-root; only lightweight ones are enabled by default.
 """
@@ -74,7 +77,11 @@ def pairwise_w1(A, B, n_anchor, gen):
     return float(wasserstein_distance(pd_(A), pd_(B)))
 
 
-def one_rep(sc, r, k, m, seed):
+def one_rep(sc, r, k, m, seed, score_on=None):
+    # Strata are always built on the PCA-score space `sc`; metrics are evaluated
+    # on `score_on` (defaults to `sc` = PCA subspace; pass Xs for original space).
+    if score_on is None:
+        score_on = sc
     gen = np.random.default_rng(seed)
     qs = PCAQS(n_components=k, n_bins=m, retention=r / len(sc),
                random_state=int(gen.integers(1 << 31)))
@@ -85,18 +92,19 @@ def one_rep(sc, r, k, m, seed):
     si = srs_indices(len(sc), r, random_state=int(gen.integers(1 << 31)))
     rows = []
     for meth, idx in (("PCA-QS", qi), ("SRS", si)):
-        kl, js = marginal_hist_kl_js(sc, sc[idx])
+        A, B = score_on, score_on[idx]
+        kl, js = marginal_hist_kl_js(A, B)
         rows.append(dict(method=meth,
-                         quantile_error=quantile_error(sc, sc[idx]), KL=kl, JS=js,
-                         energy=energy_distance(sc, sc[idx], random_state=0),
-                         MMD=mmd_rbf(sc, sc[idx], random_state=0),
-                         Mahalanobis=mahalanobis_mean(sc, sc[idx]),
-                         pairwise_W1=pairwise_w1(sc, sc[idx], 400, gen)))
+                         quantile_error=quantile_error(A, B), KL=kl, JS=js,
+                         energy=energy_distance(A, B, random_state=0),
+                         MMD=mmd_rbf(A, B, random_state=0),
+                         Mahalanobis=mahalanobis_mean(A, B),
+                         pairwise_W1=pairwise_w1(A, B, 400, gen)))
     return rows
 
 
 def run_dataset(name, path, drop_subs, reps, retain, var_target, jobs, fixed_k=None,
-                base_seed=20260806, header="infer", drop_idx=None):
+                base_seed=20260806, header="infer", drop_idx=None, space="pca"):
     X = load_numeric(path, drop_subs, header, drop_idx)
     Xs = StandardScaler().fit_transform(X)
     pca = PCA().fit(Xs)
@@ -104,10 +112,11 @@ def run_dataset(name, path, drop_subs, reps, retain, var_target, jobs, fixed_k=N
     r = int(round(retain * len(Xs)))
     m = max(2, int(np.floor(r ** (1.0 / k))))
     sc = Xs @ pca.components_[:k].T
+    score_on = sc if space == "pca" else Xs   # PCA subspace (default) or original feature space
     # Original matrix-comparison code used an UNSEEDED rng; we set an explicit,
     # reproducible per-replicate seed (base_seed + rep) and record it.
-    out = Parallel(n_jobs=jobs)(delayed(one_rep)(sc, r, k, m, base_seed + s) for s in range(reps))
-    df = pd.DataFrame([dict(dataset=name, N=len(Xs), d=X.shape[1], k=k, m=m, r=r,
+    out = Parallel(n_jobs=jobs)(delayed(one_rep)(sc, r, k, m, base_seed + s, score_on) for s in range(reps))
+    df = pd.DataFrame([dict(dataset=name, space=space, N=len(Xs), d=X.shape[1], k=k, m=m, r=r,
                             rep=i, seed=base_seed + i, **row)
                        for i, pair in enumerate(out) for row in pair])
     print(f"{name}: N={len(Xs)} d={X.shape[1]} k={k} m={m} r={r} reps={reps} base_seed={base_seed}", flush=True)
@@ -142,6 +151,8 @@ if __name__ == "__main__":
     ap.add_argument("--k", type=int, default=None, help="fixed k (default: dynamic var threshold)")
     ap.add_argument("--seed", type=int, default=20260806, help="base seed; per-rep seed = seed + rep")
     ap.add_argument("--jobs", type=int, default=14)
+    ap.add_argument("--space", choices=["pca", "original"], default="pca",
+                    help="score metrics in the top-k PCA subspace (default) or the original feature space")
     a = ap.parse_args()
     frames = []
     for name in a.datasets:
@@ -150,11 +161,12 @@ if __name__ == "__main__":
         if not hits:
             print(f"[skip] {name}: no file matching {pat}", flush=True); continue
         frames.append(run_dataset(name, sorted(hits)[0], drop, a.reps, a.retain, a.var,
-                                   a.jobs, a.k, a.seed, header, drop_idx))
+                                   a.jobs, a.k, a.seed, header, drop_idx, a.space))
     df = pd.concat(frames, ignore_index=True)
-    df.to_csv(os.path.join(OUT, "confirm_real_data.csv"), index=False)
+    tag = "" if a.space == "pca" else "_origspace"
+    df.to_csv(os.path.join(OUT, f"confirm_real_data{tag}.csv"), index=False)
     summ = summarize(df)
-    summ.to_csv(os.path.join(OUT, "confirm_real_data_summary.csv"), index=False)
+    summ.to_csv(os.path.join(OUT, f"confirm_real_data{tag}_summary.csv"), index=False)
     pd.set_option("display.width", 170, "display.max_columns", 20)
     print("\n=== per dataset: fraction of reps PCA-QS closer to full data ===")
     print(summ.to_string(index=False, float_format=lambda x: f"{x:.4g}"))

@@ -20,8 +20,9 @@ METRIC_LAB = {"quantile_error": "quantile", "KL": "KL", "JS": "JS", "energy": "e
               "MMD": "MMD", "Mahalanobis": "Mahalanobis", "pairwise_W1": "pairwise-$W_1$"}
 
 
-def fig_synthetic():
-    df = pd.read_csv(os.path.join(FIG, "confirm_synthetic_distance_summary.csv"))
+def fig_synthetic(summary_csv="confirm_synthetic_distance_summary.csv",
+                  out_name="results_synthetic_distance.png"):
+    df = pd.read_csv(os.path.join(FIG, summary_csv))
     ks = sorted(df.k.unique())
     fig, axes = plt.subplots(1, len(ks), figsize=(4.6 * len(ks), 4.4), sharey=False)
     x = np.arange(len(METRIC_ORDER)); w = 0.38
@@ -42,8 +43,8 @@ def fig_synthetic():
     np.atleast_1d(axes)[0].legend(loc="upper left", framealpha=0.95, fontsize=9)
     fig.tight_layout(rect=[0, 0, 1, 1])
     for d in (FIG, MAN):
-        fig.savefig(os.path.join(d, "results_synthetic_distance.png"), dpi=150)
-    print("wrote results_synthetic_distance.png")
+        fig.savefig(os.path.join(d, out_name), dpi=150)
+    print(f"wrote {out_name}")
 
 
 def _load(name):
@@ -51,10 +52,12 @@ def _load(name):
     return pd.read_csv(p) if os.path.exists(p) else None
 
 
-def fig_real():
+def fig_real(dyn_csv="confirm_real_data_1000_dynamicK_summary.csv",
+             k4_csv="confirm_real_data_k4recovery_summary.csv",
+             out_name="results_real_data_heatmap.png"):
     # all datasets from the two consolidated 1000-rep files
-    dyn = _load("confirm_real_data_1000_dynamicK_summary.csv")   # all 7 at dynamic k
-    k4 = _load("confirm_real_data_k4recovery_summary.csv")        # 3 high-d at k=4
+    dyn = _load(dyn_csv)   # all 7 at dynamic k
+    k4 = _load(k4_csv)      # 3 high-d at k=4
     # (short_name, display_name, source_df) ; label shows k read from the data
     spec = [
         ("CreditCard", "CreditCard", dyn), ("MAGIC", "MAGIC", dyn), ("EEG", "EEG", dyn),
@@ -94,8 +97,8 @@ def fig_real():
     ax.set_ylabel("dataset (retained dimension $k$)")
     fig.tight_layout(rect=[0, 0, 1, 1])
     for d in (FIG, MAN):
-        fig.savefig(os.path.join(d, "results_real_data_heatmap.png"), dpi=150)
-    print("wrote results_real_data_heatmap.png")
+        fig.savefig(os.path.join(d, out_name), dpi=150)
+    print(f"wrote {out_name}")
 
 
 if __name__ == "__main__":

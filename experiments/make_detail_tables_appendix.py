@@ -1,33 +1,26 @@
 #!/usr/bin/env python3
-"""Regenerate the per-dataset detailed metric tables (appendix), corrected metrics.
+"""Per-dataset detailed metric tables for the supplement (PCA-score space).
 
-Restores the granularity of the originally-submitted per-dataset tables (organised in the
-same four categories) but with the CORRECTED metric definitions, 1000-replicate means,
-95% CIs, and the fraction of replicates on which PCA-QS is closer to the full data.  For
-the three datasets whose dynamic-k choice violates the occupancy budget m^k<=r
-(Epileptic, OnlineNews, YearPrediction) we report the occupancy-feasible k=4 configuration
-and note the degradation at the naive dynamic k.
+Reads the PCA-space run of `confirm_real_data.py` --- the same profile design, seeds and
+replicate count as the original-space results in the main text --- and writes one LaTeX table
+per dataset with the mean discrepancies, paired 95% CIs and the fraction of replicates on
+which PCA-QS is closer to the full data.
+
+Regenerate the input with:
+    python3 confirm_real_data.py --datasets MAGIC EEG CreditCard HIGGS YearPrediction Epileptic \
+        --reps 1000 --stratification profile --space pca --tag _pca_profile
 """
-import os, pandas as pd, numpy as np
+import os, pandas as pd
 
 FIG = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "figures")
+SRC = "confirm_real_data_pca_profile_summary.csv"
 METRICS = ["quantile_error", "KL", "JS", "energy", "MMD", "Mahalanobis", "pairwise_W1"]
 MNAME = {"quantile_error": "Quantile error", "KL": "KL", "JS": "JS", "energy": "Energy",
          "MMD": "MMD", "Mahalanobis": "Mahalanobis", "pairwise_W1": r"Pairwise $W_1$"}
-# dataset -> (category, display, source, occupancy_note)
-CATS = [
-    ("Imbalanced Datasets", [
-        ("CreditCard", "Credit Card (UCI default)", "dyn", None),
-        ("MAGIC", "MAGIC Gamma Telescope", "dyn", None)]),
-    ("Time-Series and Signal Data", [
-        ("EEG", "EEG Eye State", "dyn", None),
-        ("Epileptic", "Epileptic Seizure", "k4", 21)]),
-    ("Large-Scale Data", [
-        ("HIGGS", "HIGGS", "dyn", None),
-        ("YearPrediction", "Year Prediction MSD", "k4", 28)]),
-    ("Feature Complexity (Text/NLP)", [
-        ("OnlineNews", "Online News Popularity", "k4", 17)]),
-]
+# (key, display name) in the order used by the main text
+DATASETS = [("MAGIC", "MAGIC Gamma Telescope"), ("EEG", "EEG Eye State"),
+            ("CreditCard", "Credit Card (UCI default)"), ("HIGGS", "HIGGS"),
+            ("YearPrediction", "Year Prediction MSD"), ("Epileptic", "Epileptic Seizure")]
 
 
 def mbody(v):
@@ -43,46 +36,66 @@ def cell(v, bold):
     return f"$\\mathbf{{{b}}}$" if bold else f"${b}$"
 
 
-def table(row_src, ds, disp, note_dynk):
-    gi = row_src[row_src.dataset == ds]
-    if gi.empty:
+def table(d, ds, disp):
+    g = d[d.dataset == ds]
+    if g.empty:
         return ""
-    k = int(gi["k"].iloc[0]); m = int(gi["m"].iloc[0]); gi = gi.set_index("metric")
+    k, m = int(g["k"].iloc[0]), int(g["m"].iloc[0])
+    H, ret = g["H_N"].iloc[0], 100 * g["realized_retention"].iloc[0]
+    gi = g.set_index("metric")
     lines = []
     for mt in METRICS:
         if mt not in gi.index:
             continue
         qs, sr = gi.loc[mt, "QS_mean"], gi.loc[mt, "SRS_mean"]
-        d, lo, hi, fr = (gi.loc[mt, c] for c in ("diff", "ci_lo", "ci_hi", "frac_QS_better"))
-        qcell, scell = cell(qs, qs < sr), cell(sr, sr < qs)
-        diffcell = f"${mbody(d)}\\;[{mbody(lo)},\\,{mbody(hi)}]$"
-        lines.append(f"{MNAME[mt]} & {qcell} & {scell} & {diffcell} & {fr:.3f} \\\\")
-    note = ""
-    if note_dynk is not None:
-        note = (f"\n\\emph{{Occupancy note:}} the naive dynamic choice $k{{=}}{note_dynk}$ gives "
-                f"$m^{{k}}\\gg r$ (most composite cells empty), and PCA-QS degrades to at best a tie; "
-                f"the occupancy-feasible $k{{=}}4$ above is the fair comparison.")
-    cap = (f"{disp}: corrected discrepancies to the full data (mean over $1000$ replicates, "
-           f"top-$k$ PCA-score space, $k{{=}}{k}$, $m{{=}}{m}$). Lower is better; \\textbf{{bold}} marks "
-           f"the method closer to the full data. The last column is the fraction of replicates on "
-           f"which PCA-QS is closer.{note}")
-    key = ds.lower()
+        dd, lo, hi, fr = (gi.loc[mt, c] for c in ("diff", "ci_lo", "ci_hi", "frac_QS_better"))
+        sig = lo > 0 or hi < 0                       # bold only a significant difference
+        lines.append(f"{MNAME[mt]} & {cell(qs, sig and qs < sr)} & {cell(sr, sig and sr < qs)} & "
+                     f"${mbody(dd)}\\;[{mbody(lo)},\\,{mbody(hi)}]$ & {fr:.3f} \\\\")
+    cap = (f"{disp}: discrepancies to the full data in the top-$k$ PCA-score space "
+           f"(profile design, $k{{=}}{k}$, $m{{=}}{m}$, $H_N={H:.0f}$ occupied strata, realized "
+           f"retention ${ret:.1f}\\%$; mean over $1000$ replicates). Lower is better; "
+           f"\\textbf{{bold}} marks the design closer to the full data when the paired interval "
+           f"excludes zero. The last column is the fraction of replicates on which PCA-QS is closer.")
     return ("\\begin{table}[h]\n\\centering\\small\n\\caption{" + cap + "}\n"
-            f"\\label{{tab:detail_{key}}}\n\\begin{{tabular}}{{lcccc}}\n\\toprule\n"
+            f"\\label{{tab:detail_{ds.lower()}}}\n\\resizebox{{\\textwidth}}{{!}}{{%\n"
+            "\\begin{tabular}{lcccc}\n\\toprule\n"
             "Metric & PCA-QS & SRS & diff $[95\\%$ CI$]$ & Frac.\\ PCA-QS closer \\\\\n\\midrule\n"
-            + "\n".join(lines) + "\n\\bottomrule\n\\end{tabular}\n\\end{table}\n")
+            + "\n".join(lines) + "\n\\bottomrule\n\\end{tabular}}\n\\end{table}\n")
+
+
+SHORT = {"MAGIC": "MAGIC", "EEG": "EEG", "CreditCard": "Credit Card", "HIGGS": "HIGGS",
+         "YearPrediction": "YearPred.", "Epileptic": "Epileptic"}
+
+
+def compact(d):
+    """One-row-per-dataset overview table (PCA-QS / SRS per metric)."""
+    rows = []
+    for ds, _ in DATASETS:
+        g = d[d.dataset == ds]
+        if g.empty:
+            continue
+        gi = g.set_index("metric")
+        cells = []
+        for mt in METRICS:
+            qs, sr = gi.loc[mt, "QS_mean"], gi.loc[mt, "SRS_mean"]
+            sig = gi.loc[mt, "ci_lo"] > 0 or gi.loc[mt, "ci_hi"] < 0
+            cells.append(f"{cell(qs, sig and qs < sr)[1:-1]}/{cell(sr, sig and sr < qs)[1:-1]}")
+        rows.append(f"{SHORT[ds]} & {int(g.k.iloc[0])} & " + " & ".join(f"${c}$" for c in cells) + r" \\")
+    cap = ("Discrepancies to the full data in the top-$k$ PCA-score space (profile design, $m=5$, "
+           "$\\delta=0.05$, mean over $1000$ replicates, simple random sampling at the same realized "
+           "size). Each cell is PCA-QS\\,/\\,SRS; \\textbf{bold} marks the closer design when the "
+           "paired interval excludes zero. Lower is better.")
+    return ("\\begin{table}[H]\n\\centering\\small\n\\caption{" + cap + "}\n"
+            "\\label{tab:detailed_corrected}\n\\resizebox{\\textwidth}{!}{%\n"
+            "\\begin{tabular}{llccccccc}\n\\toprule\n"
+            "Dataset & $k$ & quantile & KL & JS & energy & MMD & Mahal. & pair-$W_1$ \\\\\n\\midrule\n"
+            + "\n".join(rows) + "\n\\bottomrule\n\\end{tabular}}\n\\end{table}\n")
 
 
 def main():
-    dyn = pd.read_csv(os.path.join(FIG, "confirm_real_data_1000_dynamicK_summary.csv"))
-    k4 = pd.read_csv(os.path.join(FIG, "confirm_real_data_k4recovery_summary.csv"))
-    src = {"dyn": dyn, "k4": k4}
-    out = []
-    for cat, rows in CATS:
-        out.append(f"\\subsection{{{cat}}}")
-        for ds, disp, s, note in rows:
-            out.append(table(src[s], ds, disp, note))
-    tex = "\n".join(out)
+    d = pd.read_csv(os.path.join(FIG, SRC))
+    tex = compact(d) + "\n" + "\n".join(table(d, ds, disp) for ds, disp in DATASETS)
     path = os.path.join(FIG, "detailed_metrics_tables_appendix.tex")
     open(path, "w").write(tex)
     print(tex)

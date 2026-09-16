@@ -1,139 +1,138 @@
-\subsection{Imbalanced Datasets}
-\begin{table}[h]
+\begin{table}[H]
 \centering\small
-\caption{Credit Card (UCI default): corrected discrepancies to the full data (mean over $1000$ replicates, top-$k$ PCA-score space, $k{=}7$, $m{=}2$). Lower is better; \textbf{bold} marks the method closer to the full data. The last column is the fraction of replicates on which PCA-QS is closer.}
-\label{tab:detail_creditcard}
-\begin{tabular}{lcccc}
+\caption{Discrepancies to the full data in the top-$k$ PCA-score space (profile design, $m=5$, $\delta=0.05$, mean over $1000$ replicates, simple random sampling at the same realized size). Each cell is PCA-QS\,/\,SRS; \textbf{bold} marks the closer design when the paired interval excludes zero. Lower is better.}
+\label{tab:detailed_corrected}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{llccccccc}
 \toprule
-Metric & PCA-QS & SRS & diff $[95\%$ CI$]$ & Frac.\ PCA-QS closer \\
+Dataset & $k$ & quantile & KL & JS & energy & MMD & Mahal. & pair-$W_1$ \\
 \midrule
-Quantile error & $\mathbf{0.0257}$ & $0.0383$ & $-0.0125\;[-0.013,\,-0.012]$ & 0.957 \\
-KL & $\mathbf{0.0119}$ & $0.0123$ & $-0.000441\;[-0.000496,\,-0.000386]$ & 0.695 \\
-JS & $\mathbf{0.00368}$ & $0.00379$ & $-0.000109\;[-0.000124,\,-9.29\times 10^{-5}]$ & 0.675 \\
-Energy & $\mathbf{0.00387}$ & $0.00557$ & $-0.00171\;[-0.00182,\,-0.0016]$ & 0.867 \\
-MMD & $\mathbf{0.000972}$ & $0.00105$ & $-7.87\times 10^{-5}\;[-8.35\times 10^{-5},\,-7.4\times 10^{-5}]$ & 0.858 \\
-Mahalanobis & $\mathbf{0.0367}$ & $0.0648$ & $-0.0281\;[-0.0294,\,-0.0268]$ & 0.909 \\
-Pairwise $W_1$ & $\mathbf{0.255}$ & $0.259$ & $-0.00339\;[-0.0158,\,0.00897]$ & 0.512 \\
+MAGIC & 4 & $\mathbf{0.038}/0.0478$ & $\mathbf{0.0145}/0.0153$ & $\mathbf{0.004}/0.0042$ & $\mathbf{0.00471}/0.00583$ & $\mathbf{0.00124}/0.00142$ & $\mathbf{0.046}/0.0602$ & $\mathbf{0.15}/0.161$ \\
+EEG & 3 & $\mathbf{0.0102}/0.0157$ & $\mathbf{0.0302}/0.0303$ & $\mathbf{0.00981}/0.00984$ & $\mathbf{0.0011}/0.0017$ & $\mathbf{0.000332}/0.000654$ & $\mathbf{0.0339}/0.0381$ & $0.241/0.237$ \\
+Credit Card & 7 & $\mathbf{0.0348}/0.0393$ & $\mathbf{0.0128}/0.0131$ & $\mathbf{0.00398}/0.00405$ & $\mathbf{0.00519}/0.00575$ & $\mathbf{0.00106}/0.00109$ & $\mathbf{0.0562}/0.0667$ & $0.252/0.252$ \\
+HIGGS & 10 & $\mathbf{0.0134}/0.0138$ & $0.00152/0.00152$ & $0.000418/0.00042$ & $\mathbf{0.00457}/0.00466$ & $0.000988/0.000988$ & $\mathbf{0.0291}/0.0306$ & $0.187/0.188$ \\
+YearPred. & 10 & $\mathbf{0.0116}/0.0124$ & $\mathbf{0.000639}/0.000647$ & $\mathbf{0.000189}/0.000191$ & $\mathbf{0.00825}/0.00853$ & $0.001/0.001$ & $\mathbf{0.018}/0.0188$ & $0.446/0.452$ \\
+Epileptic & 10 & $0.1/\mathbf{0.0777}$ & $0.014/\mathbf{0.0139}$ & $\mathbf{0.00377}/0.00388$ & $0.0163/\mathbf{0.0123}$ & $0.00149/\mathbf{0.00138}$ & $\mathbf{0.0837}/0.0956$ & $1.1/\mathbf{0.819}$ \\
 \bottomrule
-\end{tabular}
+\end{tabular}}
 \end{table}
 
 \begin{table}[h]
 \centering\small
-\caption{MAGIC Gamma Telescope: corrected discrepancies to the full data (mean over $1000$ replicates, top-$k$ PCA-score space, $k{=}4$, $m{=}5$). Lower is better; \textbf{bold} marks the method closer to the full data. The last column is the fraction of replicates on which PCA-QS is closer.}
+\caption{MAGIC Gamma Telescope: discrepancies to the full data in the top-$k$ PCA-score space (profile design, $k{=}4$, $m{=}5$, $H_N=69$ occupied strata, realized retention $4.8\%$; mean over $1000$ replicates). Lower is better; \textbf{bold} marks the design closer to the full data when the paired interval excludes zero. The last column is the fraction of replicates on which PCA-QS is closer.}
 \label{tab:detail_magic}
+\resizebox{\textwidth}{!}{%
 \begin{tabular}{lcccc}
 \toprule
 Metric & PCA-QS & SRS & diff $[95\%$ CI$]$ & Frac.\ PCA-QS closer \\
 \midrule
-Quantile error & $\mathbf{0.0234}$ & $0.0471$ & $-0.0237\;[-0.0245,\,-0.023]$ & 0.998 \\
-KL & $\mathbf{0.0128}$ & $0.0147$ & $-0.00187\;[-0.00201,\,-0.00173]$ & 0.807 \\
-JS & $\mathbf{0.00358}$ & $0.00404$ & $-0.000459\;[-0.000496,\,-0.000422]$ & 0.782 \\
-Energy & $\mathbf{0.00385}$ & $0.00674$ & $-0.00289\;[-0.0031,\,-0.00268]$ & 0.827 \\
-MMD & $\mathbf{0.000977}$ & $0.00147$ & $-0.000489\;[-0.000506,\,-0.000472]$ & 0.977 \\
-Mahalanobis & $\mathbf{0.0222}$ & $0.0596$ & $-0.0373\;[-0.0388,\,-0.0359]$ & 0.953 \\
-Pairwise $W_1$ & $\mathbf{0.149}$ & $0.16$ & $-0.0106\;[-0.0175,\,-0.00366]$ & 0.517 \\
+Quantile error & $\mathbf{0.038}$ & $0.0478$ & $-0.00976\;[-0.0106,\,-0.00894]$ & 0.773 \\
+KL & $\mathbf{0.0145}$ & $0.0153$ & $-0.000804\;[-0.000956,\,-0.000652]$ & 0.616 \\
+JS & $\mathbf{0.004}$ & $0.0042$ & $-0.000201\;[-0.000241,\,-0.00016]$ & 0.609 \\
+Energy & $\mathbf{0.00471}$ & $0.00583$ & $-0.00111\;[-0.0013,\,-0.000928]$ & 0.613 \\
+MMD & $\mathbf{0.00124}$ & $0.00142$ & $-0.000182\;[-0.0002,\,-0.000163]$ & 0.734 \\
+Mahalanobis & $\mathbf{0.046}$ & $0.0602$ & $-0.0142\;[-0.0159,\,-0.0124]$ & 0.712 \\
+Pairwise $W_1$ & $\mathbf{0.15}$ & $0.161$ & $-0.0106\;[-0.0177,\,-0.00355]$ & 0.538 \\
 \bottomrule
-\end{tabular}
+\end{tabular}}
 \end{table}
 
-\subsection{Time-Series and Signal Data}
 \begin{table}[h]
 \centering\small
-\caption{EEG Eye State: corrected discrepancies to the full data (mean over $1000$ replicates, top-$k$ PCA-score space, $k{=}3$, $m{=}9$). Lower is better; \textbf{bold} marks the method closer to the full data. The last column is the fraction of replicates on which PCA-QS is closer.}
+\caption{EEG Eye State: discrepancies to the full data in the top-$k$ PCA-score space (profile design, $k{=}3$, $m{=}5$, $H_N=35$ occupied strata, realized retention $4.9\%$; mean over $1000$ replicates). Lower is better; \textbf{bold} marks the design closer to the full data when the paired interval excludes zero. The last column is the fraction of replicates on which PCA-QS is closer.}
 \label{tab:detail_eeg}
+\resizebox{\textwidth}{!}{%
 \begin{tabular}{lcccc}
 \toprule
 Metric & PCA-QS & SRS & diff $[95\%$ CI$]$ & Frac.\ PCA-QS closer \\
 \midrule
-Quantile error & $\mathbf{0.00704}$ & $0.0156$ & $-0.00858\;[-0.00891,\,-0.00825]$ & 0.988 \\
-KL & $\mathbf{0.0292}$ & $0.0295$ & $-0.000303\;[-0.000354,\,-0.000252]$ & 0.655 \\
-JS & $\mathbf{0.00949}$ & $0.00958$ & $-8.09\times 10^{-5}\;[-9.6\times 10^{-5},\,-6.59\times 10^{-5}]$ & 0.652 \\
-Energy & $\mathbf{0.000662}$ & $0.00154$ & $-0.000881\;[-0.000932,\,-0.00083]$ & 0.935 \\
-MMD & $\mathbf{0.000187}$ & $0.000598$ & $-0.000411\;[-0.000434,\,-0.000388]$ & 0.940 \\
-Mahalanobis & $\mathbf{0.0216}$ & $0.0375$ & $-0.0159\;[-0.0191,\,-0.0126]$ & 0.723 \\
-Pairwise $W_1$ & $\mathbf{0.179}$ & $0.23$ & $-0.0509\;[-0.0817,\,-0.02]$ & 0.587 \\
+Quantile error & $\mathbf{0.0102}$ & $0.0157$ & $-0.00555\;[-0.00589,\,-0.0052]$ & 0.866 \\
+KL & $\mathbf{0.0302}$ & $0.0303$ & $-0.000129\;[-0.000183,\,-7.58\times 10^{-5}]$ & 0.557 \\
+JS & $\mathbf{0.00981}$ & $0.00984$ & $-3.21\times 10^{-5}\;[-4.83\times 10^{-5},\,-1.58\times 10^{-5}]$ & 0.558 \\
+Energy & $\mathbf{0.0011}$ & $0.0017$ & $-0.000603\;[-0.000665,\,-0.000541]$ & 0.725 \\
+MMD & $\mathbf{0.000332}$ & $0.000654$ & $-0.000322\;[-0.000348,\,-0.000297]$ & 0.806 \\
+Mahalanobis & $\mathbf{0.0339}$ & $0.0381$ & $-0.00419\;[-0.00829,\,-9.47\times 10^{-5}]$ & 0.629 \\
+Pairwise $W_1$ & $0.241$ & $0.237$ & $0.0031\;[-0.0309,\,0.0371]$ & 0.534 \\
 \bottomrule
-\end{tabular}
+\end{tabular}}
 \end{table}
 
 \begin{table}[h]
 \centering\small
-\caption{Epileptic Seizure: corrected discrepancies to the full data (mean over $1000$ replicates, top-$k$ PCA-score space, $k{=}4$, $m{=}4$). Lower is better; \textbf{bold} marks the method closer to the full data. The last column is the fraction of replicates on which PCA-QS is closer.
-\emph{Occupancy note:} the naive dynamic choice $k{=}21$ gives $m^{k}\gg r$ (most composite cells empty), and PCA-QS degrades to at best a tie; the occupancy-feasible $k{=}4$ above is the fair comparison.}
-\label{tab:detail_epileptic}
+\caption{Credit Card (UCI default): discrepancies to the full data in the top-$k$ PCA-score space (profile design, $k{=}7$, $m{=}5$, $H_N=315$ occupied strata, realized retention $4.7\%$; mean over $1000$ replicates). Lower is better; \textbf{bold} marks the design closer to the full data when the paired interval excludes zero. The last column is the fraction of replicates on which PCA-QS is closer.}
+\label{tab:detail_creditcard}
+\resizebox{\textwidth}{!}{%
 \begin{tabular}{lcccc}
 \toprule
 Metric & PCA-QS & SRS & diff $[95\%$ CI$]$ & Frac.\ PCA-QS closer \\
 \midrule
-Quantile error & $\mathbf{0.0729}$ & $0.103$ & $-0.0305\;[-0.0324,\,-0.0286]$ & 0.851 \\
-KL & $\mathbf{0.0242}$ & $0.025$ & $-0.00087\;[-0.0011,\,-0.000641]$ & 0.577 \\
-JS & $\mathbf{0.00701}$ & $0.00722$ & $-0.000211\;[-0.000275,\,-0.000146]$ & 0.563 \\
-Energy & $\mathbf{0.00695}$ & $0.0108$ & $-0.00384\;[-0.00409,\,-0.00359]$ & 0.854 \\
-MMD & $\mathbf{0.00104}$ & $0.00172$ & $-0.000684\;[-0.000708,\,-0.000659]$ & 0.990 \\
-Mahalanobis & $\mathbf{0.0558}$ & $0.0752$ & $-0.0194\;[-0.0216,\,-0.0173]$ & 0.700 \\
-Pairwise $W_1$ & $\mathbf{0.636}$ & $0.688$ & $-0.0513\;[-0.0793,\,-0.0233]$ & 0.548 \\
+Quantile error & $\mathbf{0.0348}$ & $0.0393$ & $-0.00446\;[-0.00506,\,-0.00387]$ & 0.671 \\
+KL & $\mathbf{0.0128}$ & $0.0131$ & $-0.000275\;[-0.000333,\,-0.000216]$ & 0.628 \\
+JS & $\mathbf{0.00398}$ & $0.00405$ & $-7.3\times 10^{-5}\;[-8.95\times 10^{-5},\,-5.66\times 10^{-5}]$ & 0.625 \\
+Energy & $\mathbf{0.00519}$ & $0.00575$ & $-0.000564\;[-0.000689,\,-0.000438]$ & 0.595 \\
+MMD & $\mathbf{0.00106}$ & $0.00109$ & $-2.79\times 10^{-5}\;[-3.34\times 10^{-5},\,-2.24\times 10^{-5}]$ & 0.623 \\
+Mahalanobis & $\mathbf{0.0562}$ & $0.0667$ & $-0.0104\;[-0.012,\,-0.00891]$ & 0.664 \\
+Pairwise $W_1$ & $0.252$ & $0.252$ & $0.000259\;[-0.0112,\,0.0117]$ & 0.497 \\
 \bottomrule
-\end{tabular}
+\end{tabular}}
 \end{table}
 
-\subsection{Large-Scale Data}
 \begin{table}[h]
 \centering\small
-\caption{HIGGS: corrected discrepancies to the full data (mean over $1000$ replicates, top-$k$ PCA-score space, $k{=}13$, $m{=}2$). Lower is better; \textbf{bold} marks the method closer to the full data. The last column is the fraction of replicates on which PCA-QS is closer.}
+\caption{HIGGS: discrepancies to the full data in the top-$k$ PCA-score space (profile design, $k{=}10$, $m{=}5$, $H_N=940$ occupied strata, realized retention $4.9\%$; mean over $1000$ replicates). Lower is better; \textbf{bold} marks the design closer to the full data when the paired interval excludes zero. The last column is the fraction of replicates on which PCA-QS is closer.}
 \label{tab:detail_higgs}
+\resizebox{\textwidth}{!}{%
 \begin{tabular}{lcccc}
 \toprule
 Metric & PCA-QS & SRS & diff $[95\%$ CI$]$ & Frac.\ PCA-QS closer \\
 \midrule
-Quantile error & $\mathbf{0.0115}$ & $0.0132$ & $-0.00166\;[-0.00178,\,-0.00154]$ & 0.795 \\
-KL & $\mathbf{0.00145}$ & $0.00146$ & $-1.38\times 10^{-5}\;[-2.23\times 10^{-5},\,-5.25\times 10^{-6}]$ & 0.524 \\
-JS & $\mathbf{0.000395}$ & $0.000396$ & $-1.63\times 10^{-6}\;[-3.92\times 10^{-6},\,6.62\times 10^{-7}]$ & 0.506 \\
-Energy & $\mathbf{0.00501}$ & $0.0051$ & $-9.09\times 10^{-5}\;[-0.000164,\,-1.77\times 10^{-5}]$ & 0.534 \\
-MMD & $\mathbf{0.00099}$ & $0.00099$ & $-6.88\times 10^{-7}\;[-9.12\times 10^{-7},\,-4.64\times 10^{-7}]$ & 0.569 \\
-Mahalanobis & $\mathbf{0.0269}$ & $0.0348$ & $-0.00787\;[-0.0084,\,-0.00734]$ & 0.829 \\
-Pairwise $W_1$ & $0.178$ & $\mathbf{0.178}$ & $0.000193\;[-0.00752,\,0.00791]$ & 0.501 \\
+Quantile error & $\mathbf{0.0134}$ & $0.0138$ & $-0.000443\;[-0.000609,\,-0.000278]$ & 0.576 \\
+KL & $0.00152$ & $0.00152$ & $-7.76\times 10^{-6}\;[-1.77\times 10^{-5},\,2.19\times 10^{-6}]$ & 0.522 \\
+JS & $0.000418$ & $0.00042$ & $-1.49\times 10^{-6}\;[-4.18\times 10^{-6},\,1.2\times 10^{-6}]$ & 0.518 \\
+Energy & $\mathbf{0.00457}$ & $0.00466$ & $-8.66\times 10^{-5}\;[-0.000168,\,-5.29\times 10^{-6}]$ & 0.535 \\
+MMD & $0.000988$ & $0.000988$ & $-1.49\times 10^{-7}\;[-7\times 10^{-7},\,4.01\times 10^{-7}]$ & 0.490 \\
+Mahalanobis & $\mathbf{0.0291}$ & $0.0306$ & $-0.00155\;[-0.00215,\,-0.000941]$ & 0.582 \\
+Pairwise $W_1$ & $0.187$ & $0.188$ & $-0.00125\;[-0.00912,\,0.00662]$ & 0.514 \\
 \bottomrule
-\end{tabular}
+\end{tabular}}
 \end{table}
 
 \begin{table}[h]
 \centering\small
-\caption{Year Prediction MSD: corrected discrepancies to the full data (mean over $1000$ replicates, top-$k$ PCA-score space, $k{=}4$, $m{=}12$). Lower is better; \textbf{bold} marks the method closer to the full data. The last column is the fraction of replicates on which PCA-QS is closer.
-\emph{Occupancy note:} the naive dynamic choice $k{=}28$ gives $m^{k}\gg r$ (most composite cells empty), and PCA-QS degrades to at best a tie; the occupancy-feasible $k{=}4$ above is the fair comparison.}
+\caption{Year Prediction MSD: discrepancies to the full data in the top-$k$ PCA-score space (profile design, $k{=}10$, $m{=}5$, $H_N=983$ occupied strata, realized retention $4.9\%$; mean over $1000$ replicates). Lower is better; \textbf{bold} marks the design closer to the full data when the paired interval excludes zero. The last column is the fraction of replicates on which PCA-QS is closer.}
 \label{tab:detail_yearprediction}
+\resizebox{\textwidth}{!}{%
 \begin{tabular}{lcccc}
 \toprule
 Metric & PCA-QS & SRS & diff $[95\%$ CI$]$ & Frac.\ PCA-QS closer \\
 \midrule
-Quantile error & $0.019$ & $\mathbf{0.0162}$ & $0.00277\;[0.00255,\,0.003]$ & 0.200 \\
-KL & $0.000658$ & $\mathbf{0.00063}$ & $2.79\times 10^{-5}\;[2.31\times 10^{-5},\,3.28\times 10^{-5}]$ & 0.345 \\
-JS & $0.000192$ & $\mathbf{0.000185}$ & $6.41\times 10^{-6}\;[5.04\times 10^{-6},\,7.78\times 10^{-6}]$ & 0.378 \\
-Energy & $0.00625$ & $\mathbf{0.00587}$ & $0.000377\;[0.000216,\,0.000539]$ & 0.428 \\
-MMD & $\mathbf{0.00103}$ & $0.00103$ & $-4.5\times 10^{-6}\;[-1.03\times 10^{-5},\,1.31\times 10^{-6}]$ & 0.527 \\
-Mahalanobis & $\mathbf{0.00651}$ & $0.0112$ & $-0.0047\;[-0.00498,\,-0.00442]$ & 0.844 \\
-Pairwise $W_1$ & $\mathbf{0.367}$ & $0.38$ & $-0.0129\;[-0.0283,\,0.00259]$ & 0.516 \\
+Quantile error & $\mathbf{0.0116}$ & $0.0124$ & $-0.000748\;[-0.000891,\,-0.000605]$ & 0.611 \\
+KL & $\mathbf{0.000639}$ & $0.000647$ & $-7.42\times 10^{-6}\;[-1.09\times 10^{-5},\,-3.94\times 10^{-6}]$ & 0.537 \\
+JS & $\mathbf{0.000189}$ & $0.000191$ & $-2.04\times 10^{-6}\;[-3.05\times 10^{-6},\,-1.03\times 10^{-6}]$ & 0.528 \\
+Energy & $\mathbf{0.00825}$ & $0.00853$ & $-0.000278\;[-0.00044,\,-0.000116]$ & 0.544 \\
+MMD & $0.001$ & $0.001$ & $-2.18\times 10^{-7}\;[-8.48\times 10^{-7},\,4.11\times 10^{-7}]$ & 0.526 \\
+Mahalanobis & $\mathbf{0.018}$ & $0.0188$ & $-0.000767\;[-0.00111,\,-0.00042]$ & 0.559 \\
+Pairwise $W_1$ & $0.446$ & $0.452$ & $-0.00585\;[-0.0235,\,0.0118]$ & 0.500 \\
 \bottomrule
-\end{tabular}
+\end{tabular}}
 \end{table}
 
-\subsection{Feature Complexity (Text/NLP)}
 \begin{table}[h]
 \centering\small
-\caption{Online News Popularity: corrected discrepancies to the full data (mean over $1000$ replicates, top-$k$ PCA-score space, $k{=}4$, $m{=}6$). Lower is better; \textbf{bold} marks the method closer to the full data. The last column is the fraction of replicates on which PCA-QS is closer.
-\emph{Occupancy note:} the naive dynamic choice $k{=}17$ gives $m^{k}\gg r$ (most composite cells empty), and PCA-QS degrades to at best a tie; the occupancy-feasible $k{=}4$ above is the fair comparison.}
-\label{tab:detail_onlinenews}
+\caption{Epileptic Seizure: discrepancies to the full data in the top-$k$ PCA-score space (profile design, $k{=}10$, $m{=}5$, $H_N=870$ occupied strata, realized retention $8.2\%$; mean over $1000$ replicates). Lower is better; \textbf{bold} marks the design closer to the full data when the paired interval excludes zero. The last column is the fraction of replicates on which PCA-QS is closer.}
+\label{tab:detail_epileptic}
+\resizebox{\textwidth}{!}{%
 \begin{tabular}{lcccc}
 \toprule
 Metric & PCA-QS & SRS & diff $[95\%$ CI$]$ & Frac.\ PCA-QS closer \\
 \midrule
-Quantile error & $\mathbf{0.0196}$ & $0.0361$ & $-0.0164\;[-0.017,\,-0.0159]$ & 0.991 \\
-KL & $\mathbf{0.00835}$ & $0.00898$ & $-0.000625\;[-0.000673,\,-0.000576]$ & 0.788 \\
-JS & $\mathbf{0.00256}$ & $0.00272$ & $-0.000159\;[-0.000172,\,-0.000145]$ & 0.774 \\
-Energy & $\mathbf{0.00371}$ & $0.00459$ & $-0.000881\;[-0.000988,\,-0.000774]$ & 0.657 \\
-MMD & $\mathbf{0.000773}$ & $0.000974$ & $-0.000201\;[-0.000209,\,-0.000193]$ & 0.948 \\
-Mahalanobis & $\mathbf{0.014}$ & $0.0383$ & $-0.0243\;[-0.0256,\,-0.023]$ & 0.926 \\
-Pairwise $W_1$ & $\mathbf{0.211}$ & $0.237$ & $-0.0261\;[-0.0467,\,-0.00547]$ & 0.535 \\
+Quantile error & $0.1$ & $\mathbf{0.0777}$ & $0.0228\;[0.0218,\,0.0238]$ & 0.073 \\
+KL & $0.014$ & $\mathbf{0.0139}$ & $0.000131\;[3.51\times 10^{-5},\,0.000227]$ & 0.460 \\
+JS & $\mathbf{0.00377}$ & $0.00388$ & $-0.000117\;[-0.000143,\,-9.18\times 10^{-5}]$ & 0.599 \\
+Energy & $0.0163$ & $\mathbf{0.0123}$ & $0.00402\;[0.00379,\,0.00425]$ & 0.140 \\
+MMD & $0.00149$ & $\mathbf{0.00138}$ & $0.000111\;[0.000108,\,0.000114]$ & 0.015 \\
+Mahalanobis & $\mathbf{0.0837}$ & $0.0956$ & $-0.012\;[-0.0138,\,-0.0102]$ & 0.655 \\
+Pairwise $W_1$ & $1.1$ & $\mathbf{0.819}$ & $0.277\;[0.236,\,0.317]$ & 0.343 \\
 \bottomrule
-\end{tabular}
+\end{tabular}}
 \end{table}

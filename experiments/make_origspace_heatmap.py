@@ -42,7 +42,7 @@ def main():
     spec = [
         ("CreditCard", "CreditCard", dyn), ("MAGIC", "MAGIC", dyn), ("EEG", "EEG", dyn),
         ("HIGGS", "HIGGS", dyn),
-        ("OnlineNews", "OnlineNews", dyn), ("OnlineNews", "OnlineNews", k4),
+        # OnlineNews omitted: it is analysed in the companion empirical paper (Comm. Stat. R3)
         ("Epileptic", "Epileptic", dyn),  ("Epileptic", "Epileptic", k4),
         ("YearPrediction", "YearPred.", dyn), ("YearPrediction", "YearPred.", k4),
     ]

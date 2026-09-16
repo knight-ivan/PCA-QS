@@ -112,7 +112,7 @@ if __name__ == "__main__":
     ap.add_argument("--retain", type=float, default=0.05)
     ap.add_argument("--var", type=float, default=0.9)
     ap.add_argument("--seed", type=int, default=20260806)
-    ap.add_argument("--jobs", type=int, default=14)
+    ap.add_argument("--jobs", type=int, default=-1)
     a = ap.parse_args()
     df = pd.concat([run(n, a.reps, a.retain, a.var, a.seed, a.jobs) for n in a.datasets], ignore_index=True)
     df.to_csv(os.path.join(OUT, "confirm_regression.csv"), index=False)

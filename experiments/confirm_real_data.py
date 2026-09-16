@@ -21,11 +21,12 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from pcaqs import PCAQS, srs_indices
+from pcaqs import PCAQS, srs_indices, choose_design
 from pcaqs.metrics import quantile_error, energy_distance, mmd_rbf, mahalanobis_mean
 
 OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "figures")
 os.makedirs(OUT, exist_ok=True)
+STRATIFICATION = "profile"
 METRICS = ["quantile_error", "KL", "JS", "energy", "MMD", "Mahalanobis", "pairwise_W1"]
 
 # dataset -> (glob, drop-by-name-substring, header, drop-by-column-index)
@@ -72,24 +73,26 @@ def marginal_hist_kl_js(A, B, bins=30):
 def pairwise_w1(A, B, n_anchor, gen):
     def pd_(M):
         S = M[gen.choice(len(M), size=min(n_anchor, len(M)), replace=False)]
-        D = np.sqrt(((S[:, None, :] - S[None, :, :]) ** 2).sum(-1))
-        return D[np.triu_indices(len(S), 1)]
+        from scipy.spatial.distance import pdist
+        return pdist(S)                            # same upper-triangle distances, O(n^2) memory
     return float(wasserstein_distance(pd_(A), pd_(B)))
 
 
-def one_rep(sc, r, k, m, seed, score_on=None):
+def one_rep(sc, r, k, m, seed, score_on=None, stratification="profile"):
+    diag = {}
     # Strata are always built on the PCA-score space `sc`; metrics are evaluated
     # on `score_on` (defaults to `sc` = PCA subspace; pass Xs for original space).
     if score_on is None:
         score_on = sc
     gen = np.random.default_rng(seed)
-    qs = PCAQS(n_components=k, n_bins=m, retention=r / len(sc),
+    qs = PCAQS(n_components=k, n_bins=m, retention=r / len(sc), stratification=stratification,
                random_state=int(gen.integers(1 << 31)))
     # scores already computed; emulate strata on the score space directly:
     qs.mean_ = np.zeros(sc.shape[1]); qs.scale_ = np.ones(sc.shape[1])
     qs.components_ = np.eye(sc.shape[1])
-    qi = qs.sample_indices(sc, exact_size=r)
-    si = srs_indices(len(sc), r, random_state=int(gen.integers(1 << 31)))
+    qi = qs.sample_indices(sc, allocation="floor")
+    diag = qs.diagnostics()
+    si = srs_indices(len(sc), len(qi), random_state=int(gen.integers(1 << 31)))   # SRS at the same realized size
     rows = []
     for meth, idx in (("PCA-QS", qi), ("SRS", si)):
         A, B = score_on, score_on[idx]
@@ -99,24 +102,27 @@ def one_rep(sc, r, k, m, seed, score_on=None):
                          energy=energy_distance(A, B, random_state=0),
                          MMD=mmd_rbf(A, B, random_state=0),
                          Mahalanobis=mahalanobis_mean(A, B),
-                         pairwise_W1=pairwise_w1(A, B, 400, gen)))
+                         pairwise_W1=pairwise_w1(A, B, 400, gen), **diag))
     return rows
 
 
 def run_dataset(name, path, drop_subs, reps, retain, var_target, jobs, fixed_k=None,
-                base_seed=20260806, header="infer", drop_idx=None, space="pca"):
-    X = load_numeric(path, drop_subs, header, drop_idx)
+                base_seed=20260806, header="infer", drop_idx=None, space="pca", cap=True,
+                stratification="profile"):
+    from theory_validation import load_real, REAL          # shared loader (same rows/columns in every study)
+    X = load_real(name) if name in REAL else load_numeric(path, drop_subs, header, drop_idx)
     Xs = StandardScaler().fit_transform(X)
     pca = PCA().fit(Xs)
-    k = fixed_k if fixed_k else int(np.searchsorted(np.cumsum(pca.explained_variance_ratio_), var_target) + 1)
     r = int(round(retain * len(Xs)))
-    m = max(2, int(np.floor(r ** (1.0 / k))))
+    k, m, k_req = choose_design(r, pca.explained_variance_ratio_, k=fixed_k, var_target=var_target, cap=cap,
+                                stratification=stratification)
     sc = Xs @ pca.components_[:k].T
     score_on = sc if space == "pca" else Xs   # PCA subspace (default) or original feature space
     # Original matrix-comparison code used an UNSEEDED rng; we set an explicit,
     # reproducible per-replicate seed (base_seed + rep) and record it.
-    out = Parallel(n_jobs=jobs)(delayed(one_rep)(sc, r, k, m, base_seed + s, score_on) for s in range(reps))
-    df = pd.DataFrame([dict(dataset=name, space=space, N=len(Xs), d=X.shape[1], k=k, m=m, r=r,
+    out = Parallel(n_jobs=jobs)(delayed(one_rep)(sc, r, k, m, base_seed + s, score_on, stratification) for s in range(reps))
+    df = pd.DataFrame([dict(dataset=name, space=space, stratification=stratification, N=len(Xs), d=X.shape[1], k=k, k_requested=k_req,
+                            capped=cap, m=m, r=r,
                             rep=i, seed=base_seed + i, **row)
                        for i, pair in enumerate(out) for row in pair])
     print(f"{name}: N={len(Xs)} d={X.shape[1]} k={k} m={m} r={r} reps={reps} base_seed={base_seed}", flush=True)
@@ -127,12 +133,15 @@ def summarize(df):
     out = []
     for name, g in df.groupby("dataset"):
         k = int(g["k"].iloc[0]); m = int(g["m"].iloc[0])
+        qd = g[g.method == "PCA-QS"]
         for metric in METRICS:
             q = g[g.method == "PCA-QS"].sort_values("rep")[metric].values
             s = g[g.method == "SRS"].sort_values("rep")[metric].values
             d = q - s                                    # paired difference
             se = d.std(ddof=1) / np.sqrt(len(d))
-            out.append(dict(dataset=name, k=k, m=m, metric=metric,
+            out.append(dict(dataset=name, k=k, m=m, metric=metric, H_N=qd["H_N"].mean(),
+                            empty_cells=qd["empty_cells"].mean(), unrepresented_share=qd["unrepresented_share"].mean(),
+                            realized_retention=qd["realized_retention"].mean(),
                             QS_mean=q.mean(), SRS_mean=s.mean(), diff=d.mean(),
                             ci_lo=d.mean() - 1.96 * se, ci_hi=d.mean() + 1.96 * se,
                             frac_QS_better=float(np.mean(q < s))))
@@ -145,15 +154,20 @@ if __name__ == "__main__":
     ap.add_argument("--data-root", default=os.path.join(
         _proj, "LaTeX", "Final Version", "Real Data Marix Comparions csv"))
     ap.add_argument("--datasets", nargs="+", default=["CreditCard", "MAGIC", "EEG", "Epileptic"])
-    ap.add_argument("--reps", type=int, default=20)
+    ap.add_argument("--reps", type=int, default=1000)
+    ap.add_argument("--stratification", choices=["profile", "grid"], default="profile")
+    ap.add_argument("--uncapped", action="store_true",
+                    help="illustration only: variance-threshold k without the occupancy cap")
+    ap.add_argument("--tag", default="")
     ap.add_argument("--retain", type=float, default=0.05)
     ap.add_argument("--var", type=float, default=0.70)
     ap.add_argument("--k", type=int, default=None, help="fixed k (default: dynamic var threshold)")
     ap.add_argument("--seed", type=int, default=20260806, help="base seed; per-rep seed = seed + rep")
-    ap.add_argument("--jobs", type=int, default=14)
+    ap.add_argument("--jobs", type=int, default=-1)
     ap.add_argument("--space", choices=["pca", "original"], default="pca",
                     help="score metrics in the top-k PCA subspace (default) or the original feature space")
     a = ap.parse_args()
+    STRATIFICATION = a.stratification
     frames = []
     for name in a.datasets:
         pat, drop, header, drop_idx = DATASETS[name]
@@ -161,9 +175,10 @@ if __name__ == "__main__":
         if not hits:
             print(f"[skip] {name}: no file matching {pat}", flush=True); continue
         frames.append(run_dataset(name, sorted(hits)[0], drop, a.reps, a.retain, a.var,
-                                   a.jobs, a.k, a.seed, header, drop_idx, a.space))
+                                   a.jobs, a.k, a.seed, header, drop_idx, a.space, cap=not a.uncapped,
+                                   stratification=a.stratification))
     df = pd.concat(frames, ignore_index=True)
-    tag = "" if a.space == "pca" else "_origspace"
+    tag = ("" if a.space == "pca" else "_origspace") + a.tag
     df.to_csv(os.path.join(OUT, f"confirm_real_data{tag}.csv"), index=False)
     summ = summarize(df)
     summ.to_csv(os.path.join(OUT, f"confirm_real_data{tag}_summary.csv"), index=False)

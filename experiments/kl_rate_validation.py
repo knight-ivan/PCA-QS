@@ -21,7 +21,7 @@ from joblib import Parallel, delayed
 import matplotlib; matplotlib.use("Agg"); import matplotlib.pyplot as plt
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from pcaqs import PCAQS
+from pcaqs import PCAQS, choose_design
 from pcaqs.data import anisotropic_gmm, ANISO_EIGS, ANISO_M1, ANISO_VAR1, ANISO_W
 
 OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "figures")
@@ -50,10 +50,10 @@ def one_rep(k, r, N, seed):
     comps = [multivariate_normal(m0, C0, allow_singular=True),
              multivariate_normal(m1, C1, allow_singular=True)]
 
-    qs = PCAQS(n_components=k, n_bins=max(2, int(np.floor(r ** (1.0 / k)))),
+    qs = PCAQS(n_components=k, n_bins=5, stratification="profile",
                retention=r / N, random_state=int(gen.integers(1 << 31)))
     qs.mean_ = np.zeros(k); qs.scale_ = np.ones(k); qs.components_ = np.eye(k)
-    idx = qs.sample_indices(sc, exact_size=r)
+    idx = qs.sample_indices(sc, allocation="floor")
     try:
         fhat = gaussian_kde(sc[idx].T)
     except Exception:
@@ -82,9 +82,9 @@ def run(ks, reps, delta, jobs, seed):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--ks", type=int, nargs="+", default=[2, 3])
-    ap.add_argument("--reps", type=int, default=30)
+    ap.add_argument("--reps", type=int, default=1000)
     ap.add_argument("--delta", type=float, default=0.1)
-    ap.add_argument("--jobs", type=int, default=14)
+    ap.add_argument("--jobs", type=int, default=-1)
     ap.add_argument("--seed", type=int, default=20260806)
     a = ap.parse_args()
     df = run(a.ks, a.reps, a.delta, a.jobs, a.seed)

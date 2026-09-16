@@ -17,7 +17,7 @@ from scipy.stats import wasserstein_distance
 from joblib import Parallel, delayed
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from pcaqs import PCAQS, srs_indices
+from pcaqs import PCAQS, srs_indices, choose_design
 from pcaqs.data import structure_fidelity_gmm
 from pcaqs.metrics import quantile_error, energy_distance, mmd_rbf, mahalanobis_mean
 
@@ -42,17 +42,16 @@ def marginal_hist_kl_js(A, B, bins=30):
 def pairwise_w1(A, B, n_anchor, gen):
     def pdist_sample(M):
         S = M[gen.choice(len(M), size=min(n_anchor, len(M)), replace=False)]
-        D = np.sqrt(((S[:, None, :] - S[None, :, :]) ** 2).sum(-1))
-        return D[np.triu_indices(len(S), 1)]
+        from scipy.spatial.distance import pdist
+        return pdist(S)
     return float(wasserstein_distance(pdist_sample(A), pdist_sample(B)))
 
 
 def occupancy_m(k, r, fixed=None):
-    """Largest m with m^k <= r (so H_N <= r is feasible); or `fixed` if given."""
+    """Bins per component from the shared design rule (about 10 retained points per cell)."""
     if fixed:
         return fixed
-    m = int(np.floor(r ** (1.0 / k)))
-    return max(2, m)
+    return 5                                                  # profile design: B = 5 quintile cutoffs
 
 
 def one_run(k, b, N, delta, seed, fixed_m=None, space="pca"):
@@ -61,12 +60,12 @@ def one_run(k, b, N, delta, seed, fixed_m=None, space="pca"):
     X, _ = structure_fidelity_gmm(N, random_state=gen.integers(1 << 31))
     r = int(round(delta * N))
     m = occupancy_m(k, r, fixed=fixed_m)
-    qs = PCAQS(n_components=k, n_bins=m, retention=delta,
+    qs = PCAQS(n_components=k, n_bins=m, retention=delta, stratification="profile",
                random_state=int(gen.integers(1 << 31)))
     sc = qs.fit(X).scores(X)
-    qi = qs.sample_indices(X, exact_size=r)
+    qi = qs.sample_indices(X, allocation="floor")
     H_N = qs.n_cells_
-    si = srs_indices(len(X), r, random_state=int(gen.integers(1 << 31)))
+    si = srs_indices(len(X), len(qi), random_state=int(gen.integers(1 << 31)))
     # Strata come from the PCA scores; metrics are scored either in that PCA
     # subspace (default) or in the original standardized feature space Xs.
     Xs = (X - qs.mean_) / qs.scale_
@@ -104,7 +103,7 @@ def summarize(df):
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--runs", type=int, default=100)
+    ap.add_argument("--runs", type=int, default=1000)
     ap.add_argument("--N", type=int, default=100_000)
     ap.add_argument("--ks", type=int, nargs="+", default=[3, 5, 10])
     ap.add_argument("--jobs", type=int, default=-1)

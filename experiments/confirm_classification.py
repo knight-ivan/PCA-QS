@@ -23,7 +23,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import roc_auc_score, f1_score, recall_score, precision_score
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from pcaqs import PCAQS, srs_indices
+from pcaqs import PCAQS, srs_indices, choose_design
 from pcaqs.data import classification_gmm
 
 OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "figures")
@@ -40,18 +40,15 @@ def one_run(gen, N, n_test, retain, k, var_target=0.7):
     scaler = StandardScaler().fit(Xtr)                 # fit on train only
     Xtr_s, Xte_s = scaler.transform(Xtr), scaler.transform(Xte)
     pca = PCA().fit(Xtr_s)                             # fit on train only
-    k_eff = k if k else int(np.searchsorted(np.cumsum(pca.explained_variance_ratio_), var_target) + 1)
-
-    # occupancy-limited bins: m^k_eff <= r so cells stay populated
     r = int(round(retain * len(Xtr)))
-    m = max(2, int(np.floor(r ** (1.0 / k_eff))))
+    k_eff, m, _ = choose_design(r, pca.explained_variance_ratio_, k=k, var_target=var_target, stratification="profile")
 
     # PCA-QS strata on the training frame; equal exact retained size for both
-    qs = PCAQS(n_components=k_eff, n_bins=m, retention=retain,
+    qs = PCAQS(n_components=k_eff, n_bins=m, retention=retain, stratification="profile",
                random_state=int(gen.integers(1 << 31)))
     qs.fit(Xtr)
-    qi = qs.sample_indices(Xtr, exact_size=r)
-    si = srs_indices(len(Xtr), r, random_state=int(gen.integers(1 << 31)))
+    qi = qs.sample_indices(Xtr, allocation="floor")
+    si = srs_indices(len(Xtr), len(qi), random_state=int(gen.integers(1 << 31)))
 
     res = {}
     for meth, idx in (("PCA-QS", qi), ("SRS", si)):
@@ -97,7 +94,7 @@ def summarize(df):
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--runs", type=int, default=60)
+    ap.add_argument("--runs", type=int, default=1000)
     ap.add_argument("--N", type=int, default=100_000)
     ap.add_argument("--retain", type=float, default=0.05)
     ap.add_argument("--k", type=int, default=None, help="fixed k; default = dynamic 70% variance")

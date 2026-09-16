@@ -7,6 +7,7 @@ paper plus the exact 2-Wasserstein used for the geometric-rate check.
 from __future__ import annotations
 import numpy as np
 from scipy.optimize import linear_sum_assignment
+from scipy.spatial.distance import cdist
 
 
 def quantile_error(A, B, ps=None):
@@ -37,7 +38,7 @@ def exact_w2(A, B):
     """
     n = min(len(A), len(B))
     A, B = A[:n], B[:n]
-    C = ((A[:, None, :] - B[None, :, :]) ** 2).sum(-1)
+    C = cdist(A, B, "sqeuclidean")                 # avoids an n x n x d intermediate
     r, c = linear_sum_assignment(C)
     return float(np.sqrt(C[r, c].mean()))
 
@@ -49,7 +50,7 @@ def energy_distance(A, B, max_n=2000, random_state=None):
         return M if len(M) <= max_n else M[rng.choice(len(M), max_n, replace=False)]
     A, B = sub(A), sub(B)
     def md(P, Q):
-        return np.sqrt(((P[:, None, :] - Q[None, :, :]) ** 2).sum(-1)).mean()
+        return cdist(P, Q).mean()                  # O(n^2) memory, not O(n^2 d)
     return float(2 * md(A, B) - md(A, A) - md(B, B))
 
 
@@ -60,8 +61,7 @@ def mmd_rbf(A, B, gamma=1.0, max_n=2000, random_state=None):
         return M if len(M) <= max_n else M[rng.choice(len(M), max_n, replace=False)]
     A, B = sub(A), sub(B)
     def k(P, Q):
-        d2 = ((P[:, None, :] - Q[None, :, :]) ** 2).sum(-1)
-        return np.exp(-gamma * d2).mean()
+        return np.exp(-gamma * cdist(P, Q, "sqeuclidean")).mean()
     return float(k(A, A) + k(B, B) - 2 * k(A, B))
 
 

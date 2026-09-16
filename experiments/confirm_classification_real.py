@@ -27,7 +27,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_auc_score, f1_score, recall_score, precision_score
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from pcaqs import PCAQS, srs_indices
+from pcaqs import PCAQS, srs_indices, choose_design
 
 OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "figures")
 os.makedirs(OUT, exist_ok=True)
@@ -56,14 +56,12 @@ def one_rep(X, y, seed, retain, var_target):
     gen = np.random.default_rng(seed)
     rows = []
     for cfg, pc in PC_CONFIGS:
-        k = pc if pc else int(np.searchsorted(np.cumsum(pca.explained_variance_ratio_), var_target) + 1)
-        k = min(k, Xtr.shape[1], max(2, int(np.floor(np.log2(r)))))   # occupancy cap: 2^k <= r
-        m = max(2, int(np.floor(r ** (1.0 / k))))
-        qs = PCAQS(n_components=k, n_bins=m, retention=retain,
+        k, m, _ = choose_design(r, pca.explained_variance_ratio_, k=pc, var_target=var_target, stratification="profile")
+        qs = PCAQS(n_components=k, n_bins=m, retention=retain, stratification="profile",
                    random_state=int(gen.integers(1 << 31)))
         qs.fit(Xtr)
-        qi = qs.sample_indices(Xtr, exact_size=r)
-        si = srs_indices(len(Xtr), r, random_state=int(gen.integers(1 << 31)))
+        qi = qs.sample_indices(Xtr, allocation="floor")
+        si = srs_indices(len(Xtr), len(qi), random_state=int(gen.integers(1 << 31)))
         for meth, idx in (("PCA-QS", qi), ("SRS", si)):
             clf = LogisticRegression(max_iter=1000).fit(Xtr_s[idx], ytr[idx])
             p = clf.predict_proba(Xte_s)[:, 1]
@@ -112,7 +110,7 @@ if __name__ == "__main__":
     ap.add_argument("--retain", type=float, default=0.1)
     ap.add_argument("--var", type=float, default=0.7)
     ap.add_argument("--base-seed", type=int, default=42, help="original seed = 42 + i")
-    ap.add_argument("--jobs", type=int, default=14)
+    ap.add_argument("--jobs", type=int, default=-1)
     a = ap.parse_args()
     frames = []
     if os.path.exists(a.credit_path):

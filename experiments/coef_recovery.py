@@ -14,8 +14,10 @@ coefficient error ||beta_sub - beta_full||_2 (standardised-feature space, so it 
 statement about variable effects). Aggregate the paired PCA-QS vs SRS error and the
 across-replicate coefficient stability.
 
-Classification: logistic regression (Credit Card, APS/OpenML).
-Regression:     ridge (CASP, Bike Sharing, Appliances).
+Classification: logistic regression (Credit Card, APS/OpenML, MAGIC, Epileptic seizure).
+Regression:     ridge (YearPredictionMSD).
+(CASP, Bike Sharing and Appliances loaders are kept for reference; those datasets are
+analysed in the companion empirical paper and are not used in the theory paper.)
 """
 import os, sys, argparse
 import numpy as np, pandas as pd
@@ -28,7 +30,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.datasets import fetch_openml
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from pcaqs import PCAQS, srs_indices
+from pcaqs import PCAQS, srs_indices, choose_design
 
 OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "figures")
 os.makedirs(OUT, exist_ok=True)
@@ -37,7 +39,20 @@ CREDIT = os.path.join(_PROJ, "LaTeX", "Final Version", "Real Data Logistic Regre
                       "crediccard", "UCI_Credit_Card.csv")
 
 
+_REAL = os.path.join(_PROJ, "LaTeX", "Final Version", "Real Data Marix Comparions csv")
+
+
 def load(name):
+    if name == "MAGIC":
+        df = pd.read_csv(os.path.join(_REAL, "magic+gamma+telescope", "magic04.csv"), header=None)
+        return df.iloc[:, :-1].to_numpy(float), (df.iloc[:, -1] == "g").to_numpy().astype(int), "clf"
+    if name == "Epileptic":
+        df = pd.read_csv(os.path.join(_REAL, "Epileptic Seizure Recognition", "Epileptic_Seizure_Recognition.csv"))
+        X = df[[c for c in df.columns if c.startswith("X") and c[1:].isdigit()]].to_numpy(float)
+        return X, (df["y"] == 1).to_numpy().astype(int), "clf"          # seizure vs non-seizure
+    if name == "YearPrediction":
+        df = pd.read_csv(os.path.join(_REAL, "YearPredictionMSD", "YearPredictionMSD.csv"), header=None)
+        return df.iloc[:, 1:].to_numpy(float), df.iloc[:, 0].to_numpy(float), "reg"
     if name == "CreditCard":
         df = pd.read_csv(CREDIT); y = df.iloc[:, -1].to_numpy().astype(int)
         X = df.iloc[:, :-1].select_dtypes(include=[np.number]).to_numpy(float); return X, y, "clf"
@@ -78,12 +93,11 @@ def one_rep(X, y, task, seed, retain, var_target):
     beta_full = _coef(_model(task).fit(Xtr_s, ytr))            # target: full-train coefficients
 
     pca = PCA().fit(Xtr_s)
-    k = int(np.searchsorted(np.cumsum(pca.explained_variance_ratio_), var_target) + 1)
-    k = min(k, Xtr.shape[1], max(2, int(np.floor(np.log2(r)))))
-    m = max(2, int(np.floor(r ** (1.0 / k))))
-    qs = PCAQS(n_components=k, n_bins=m, retention=retain, random_state=int(gen.integers(1 << 31))).fit(Xtr)
-    qi = qs.sample_indices(Xtr, exact_size=r)
-    si = srs_indices(n, r, random_state=int(gen.integers(1 << 31)))
+    k, m, _ = choose_design(r, pca.explained_variance_ratio_, var_target=var_target, stratification="profile")
+    qs = PCAQS(n_components=k, n_bins=m, retention=retain, random_state=int(gen.integers(1 << 31)),
+               stratification="profile").fit(Xtr)
+    qi = qs.sample_indices(Xtr, allocation="floor")
+    si = srs_indices(n, len(qi), random_state=int(gen.integers(1 << 31)))   # same realized size
 
     out = {}
     for meth, idx in (("PCA-QS", qi), ("SRS", si)):
@@ -120,12 +134,12 @@ def run(name, reps, retain, var_target, base_seed, jobs):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--datasets", nargs="+",
-                    default=["CreditCard", "APS", "CASP", "BikeSharing", "Appliances"])
-    ap.add_argument("--reps", type=int, default=500)
+                    default=["CreditCard", "APS", "MAGIC", "Epileptic", "YearPrediction"])
+    ap.add_argument("--reps", type=int, default=1000)
     ap.add_argument("--retain", type=float, default=0.1)
     ap.add_argument("--var", type=float, default=0.9)
     ap.add_argument("--seed", type=int, default=20260806)
-    ap.add_argument("--jobs", type=int, default=14)
+    ap.add_argument("--jobs", type=int, default=-1)
     a = ap.parse_args()
     rows = [run(n, a.reps, a.retain, a.var, a.seed, a.jobs) for n in a.datasets]
     df = pd.DataFrame(rows)

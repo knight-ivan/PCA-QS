@@ -62,7 +62,7 @@ def fig_real(dyn_csv="confirm_real_data_1000_dynamicK_summary.csv",
     spec = [
         ("CreditCard", "CreditCard", dyn), ("MAGIC", "MAGIC", dyn), ("EEG", "EEG", dyn),
         ("HIGGS", "HIGGS", dyn),
-        ("OnlineNews", "OnlineNews", dyn), ("OnlineNews", "OnlineNews", k4),
+        # OnlineNews omitted: it is analysed in the companion empirical paper (Comm. Stat. R3)
         ("Epileptic", "Epileptic", dyn),  ("Epileptic", "Epileptic", k4),
         ("YearPrediction", "YearPred.", dyn), ("YearPrediction", "YearPred.", k4),
     ]
@@ -89,7 +89,7 @@ def fig_real(dyn_csv="confirm_real_data_1000_dynamicK_summary.csv",
             ax.text(j, i, f"{f:.2f}", ha="center", va="center", fontsize=7.5,
                     color="white" if abs(M[i, j]) > 0.32 else "black")
     # separators between groups
-    for y in (2.5, 3.5, 5.5, 7.5):
+    for y in (2.5, 3.5, 5.5):
         ax.axhline(y, color="k", lw=0.8)
     cb = fig.colorbar(im, ax=ax, fraction=0.03, pad=0.02, ticks=[-0.5, 0, 0.5])
     cb.ax.set_yticklabels(["SRS\ncloser", "tie", "PCA-QS\ncloser"], fontsize=7.5)

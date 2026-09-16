@@ -1,10 +1,19 @@
 """Core PCA-Guided Quantile Sampling (PCA-QS) sampler.
 
 PCA-QS keeps the original feature space and uses the leading principal components
-only to *guide* a quantile-based stratification: each of the top-k PC scores is
-split into m quantile bins, the composite (product) bin is the stratum, and points
-are drawn from each stratum under proportional allocation.  See Foo & Chang,
-"PCA-Guided Quantile Sampling".
+only to *guide* a quantile-based stratification. Each of the top-k PC scores is cut at
+its B-1 interior empirical quantiles, and the strata are either
+
+* ``"profile"`` (default; the implementation of Foo & Chang's Communications in
+  Statistics paper): observations sharing the cutoff-count profile
+  g_i = (sum_j 1{Z_ij > tau_j1}, ..., sum_j 1{Z_ij > tau_j,B-1}) form one stratum; at most
+  C(k+B-1, B-1) strata; or
+* ``"grid"``: the full cross-classification of the per-component bins (at most B^k cells),
+  the finest PC-quantile stratification, of which every profile stratum is a union.
+
+Points are drawn by simple random sampling within strata, with either the companion
+paper's allocation max(1, floor(delta N_g)) (``allocation="floor"``) or an exact-size
+largest-remainder allocation.
 """
 from __future__ import annotations
 import numpy as np
@@ -18,7 +27,9 @@ class PCAQS:
     n_components : int
         Number of leading principal components used to guide stratification (k).
     n_bins : int
-        Number of quantile bins per component (m).
+        Number of quantile bins per component (B; 5 = quintiles in the companion paper).
+    stratification : {"profile", "grid"}
+        Cutoff-count profiles (default) or the full cross-classification.
     retention : float
         Fraction of points to retain within each stratum (delta), in (0, 1].
     standardize : bool
@@ -32,8 +43,11 @@ class PCAQS:
     define the strata.  Sampling within a stratum is uniform by default.
     """
 
-    def __init__(self, n_components=5, n_bins=10, retention=0.05,
-                 standardize=True, random_state=None):
+    def __init__(self, n_components=5, n_bins=5, retention=0.05,
+                 standardize=True, random_state=None, stratification="profile"):
+        if stratification not in ("profile", "grid"):
+            raise ValueError("stratification must be 'profile' or 'grid'")
+        self.stratification = stratification
         self.n_components = int(n_components)
         self.n_bins = int(n_bins)
         self.retention = float(retention)
@@ -53,6 +67,12 @@ class PCAQS:
         Xs = (X - self.mean_) / self.scale_
         # top-k right singular vectors of the centered, scaled data
         _, sv, Vt = np.linalg.svd(Xs - Xs.mean(0), full_matrices=False)
+        # deterministic sign convention (as scikit-learn's svd_flip with
+        # u_based_decision=False): the largest-magnitude loading of each component is
+        # positive. Profile strata depend on component signs, so this fixes them uniquely.
+        signs = np.sign(Vt[np.arange(Vt.shape[0]), np.argmax(np.abs(Vt), axis=1)])
+        signs[signs == 0] = 1.0
+        Vt = Vt * signs[:, None]
         self.components_ = Vt[: self.n_components].T          # (p, k)
         self.singular_values_ = sv[: self.n_components]
         return self
@@ -64,19 +84,30 @@ class PCAQS:
         return Xs @ self.components_
 
     def strata(self, X):
-        """Composite quantile-stratum id for each row of X (0 .. m^k-1, occupied)."""
+        """Stratum id for each row of X.
+
+        Cutoffs are the empirical (100 b / B)% points of each score (``np.percentile``),
+        and an observation is above a cutoff when its score is strictly greater.
+        """
         sc = self.scores(X)
         n, k = sc.shape
+        B = self.n_bins
+        q = np.percentile(sc, np.arange(1, B) * 100.0 / B, axis=0)       # (B-1, k)
+        self.bin_edges_ = [q[:, j] for j in range(k)]
+        above = sc[:, None, :] > q[None, :, :]                             # (n, B-1, k)
         key = np.zeros(n, dtype=np.int64)
-        self.bin_edges_ = []
-        for j in range(k):
-            edges = np.quantile(sc[:, j], np.linspace(0, 1, self.n_bins + 1)[1:-1])
-            self.bin_edges_.append(edges)
-            key = key * self.n_bins + np.digitize(sc[:, j], edges)
+        if self.stratification == "profile":
+            counts = above.sum(axis=2)                                     # (n, B-1), values 0..k
+            for b in range(B - 1):
+                key = key * (k + 1) + counts[:, b]
+        else:
+            bins = above.sum(axis=1)                                       # (n, k), values 0..B-1
+            for j in range(k):
+                key = key * B + bins[:, j]
         return key
 
     # -- sample --------------------------------------------------------------
-    def sample_indices(self, X, exact_size=None, min_per_cell=0):
+    def sample_indices(self, X, exact_size=None, min_per_cell=0, allocation=None):
         """Indices of the retained subset (fully vectorised; no per-cell loop).
 
         With ``exact_size=None`` (default) uses the per-cell ceiling rule
@@ -95,10 +126,15 @@ class PCAQS:
         H, n = len(counts), len(key)
         self.n_cells_ = H                               # H_N
 
-        if exact_size is None:
+        if allocation == "floor":                       # companion paper: max(1, floor(delta N_g))
+            rh = np.minimum(np.maximum(1, np.floor(self.retention * counts).astype(np.int64)), counts)
+        elif exact_size is None:
             rh = np.minimum(np.ceil(self.retention * counts).astype(np.int64), counts)
         else:
+            if min_per_cell == "auto":                  # floor at one point per cell when feasible
+                min_per_cell = 1 if int(exact_size) >= H else 0
             rh = self._largest_remainder(counts, int(exact_size), min_per_cell=min_per_cell)
+        self.cell_counts_, self.cell_alloc_ = counts, rh
 
         # pick rh[g] uniformly at random within each cell g, without a Python loop:
         # order points group-major with a random tiebreak, then keep the first rh per group.
@@ -144,13 +180,29 @@ class PCAQS:
             base = np.minimum(np.maximum(base, floor), counts)   # raise deficient cells to floor
             excess = int(base.sum() - r)                          # reclaim so the sum stays == r
             if excess > 0:
-                cap = base - floor                                # each cell can give down to floor
-                for idx in np.argsort(-cap):                      # take from the largest surplus first
-                    if excess <= 0:
-                        break
-                    take = min(int(cap[idx]), excess)
-                    base[idx] -= take; excess -= take
+                # remove one unit at a time from the cell that is most over-allocated relative
+                # to its proportional share (base - ideal), never going below the floor, so the
+                # allocation stays as close to proportional as the floor allows
+                import heapq
+                heap = [(-(base[i] - ideal[i]), i) for i in range(H) if base[i] > floor]
+                heapq.heapify(heap)
+                while excess > 0:
+                    _, i = heapq.heappop(heap)
+                    base[i] -= 1; excess -= 1
+                    if base[i] > floor:
+                        heapq.heappush(heap, (-(base[i] - ideal[i]), i))
+        assert base.sum() == r
         return base
+
+    def diagnostics(self):
+        """Occupancy diagnostics of the last draw: occupied cells H_N, singleton cells,
+        cells left unrepresented (r_h = 0) and their share of the frame, the smallest
+        positive allocation, and the realized retention."""
+        c, a = self.cell_counts_, self.cell_alloc_
+        return dict(H_N=int(len(c)), singletons=int((c == 1).sum()),
+                    empty_cells=int((a == 0).sum()),
+                    unrepresented_share=float(c[a == 0].sum() / c.sum()),
+                    min_alloc=int(a[a > 0].min()), realized_retention=float(a.sum() / c.sum()))
 
     def design_weights(self, X, idx):
         """Design weights N_h/(N * r_h) for retained points `idx` (sum to 1).

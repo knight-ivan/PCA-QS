@@ -39,10 +39,11 @@ def functionals(X, sc):
     return np.column_stack(list(cols.values())), list(cols.keys())
 
 
-def run(N=40000, k=3, m=4, delta=0.05, reps=3000, seed=20260806):
+def run(N=40000, k=3, m=5, delta=0.05, reps=1000, seed=20260806, stratification="profile"):
     rng = np.random.default_rng(seed)
     X, _ = anisotropic_gmm(N, random_state=int(rng.integers(1 << 31)))
-    qs = PCAQS(n_components=k, n_bins=m, retention=delta, random_state=int(rng.integers(1 << 31)))
+    qs = PCAQS(n_components=k, n_bins=m, retention=delta, random_state=int(rng.integers(1 << 31)),
+               stratification=stratification)
     sc = qs.fit(X).scores(X)
     lab = qs.strata(X)                                     # composite cell label per frame point
     uniq, lab = np.unique(lab, return_inverse=True)        # 0..L-1
@@ -57,15 +58,15 @@ def run(N=40000, k=3, m=4, delta=0.05, reps=3000, seed=20260806):
     sq_sum = np.zeros((L, P)); np.add.at(sq_sum, lab, G ** 2)
     S2 = (sq_sum - Nh[:, None] * cell_mean ** 2) / np.maximum(Nh[:, None] - 1, 1)  # within-cell var
 
-    R = int(round(delta * N))
-    idx0 = qs.sample_indices(X, exact_size=R)              # exact allocation is deterministic in r_h
+    idx0 = qs.sample_indices(X, allocation="floor")
+    R = len(idx0)                                          # realized size under max(1, floor(delta N_g))              # exact allocation is deterministic in r_h
     rh = np.bincount(lab[idx0], minlength=L).astype(float)
     fpc = np.where(Nh > 0, 1 - rh / np.maximum(Nh, 1), 0.0)
     V_prop = (((pih ** 2 * fpc)[:, None]) * np.where(rh[:, None] > 0, S2 / np.maximum(rh[:, None], 1), 0.0)).sum(0)
 
     muw = np.empty((reps, P)); mus = np.empty((reps, P))
     for b in range(reps):
-        qi = qs.sample_indices(X, exact_size=R)
+        qi = qs.sample_indices(X, allocation="floor")
         lb = lab[qi]
         s = np.zeros((L, P)); np.add.at(s, lb, G[qi])
         c = np.bincount(lb, minlength=L)
@@ -74,37 +75,44 @@ def run(N=40000, k=3, m=4, delta=0.05, reps=3000, seed=20260806):
         si = srs_indices(N, R, random_state=int(rng.integers(1 << 31)))
         mus[b] = G[si].mean(0)
     var_w = muw.var(0, ddof=1); var_s = mus.var(0, ddof=1)
+    # exact SRSWOR design variance at the same realized size (no Monte Carlo error)
+    var_s_exact = (1 - R / N) * G.var(0, ddof=1) / R
     bias = muw.mean(0) - mu
     df = pd.DataFrame(dict(functional=names, P_N_g=mu, mean_muw=muw.mean(0), abs_bias=np.abs(bias),
                            var_pcaqs=var_w, var_prop=V_prop, var_ratio=var_w / V_prop,
-                           var_srs=var_s, obs_R_dVar=R * (var_s - var_w), pred_B=B))
+                           var_srs=var_s, var_srs_exact=var_s_exact,
+                           obs_R_dVar=R * (var_s_exact - var_w), pred_B=(1 - R / N) * B,
+                           pred_B_formula=R * (var_s_exact - V_prop)))
     return df, dict(N=N, k=k, m=m, R=R, L=L, reps=reps)
 
 
 def plot(df, meta):
     fig, ax = plt.subplots(1, 2, figsize=(10, 4.3))
     a = ax[0]
-    lim = max(df.pred_B.max(), df.obs_R_dVar.max()) * 1.15
+    lim = max(df.pred_B.max(), (df.obs_R_dVar + 2 * meta["R"] * df.var_pcaqs * np.sqrt(2.0 / (meta["reps"] - 1))).max()) * 1.08
     a.plot([0, lim], [0, lim], ":", color="gray", label="theory ($45^\\circ$)")
-    a.scatter(df.pred_B, df.obs_R_dVar, s=45, color=BLUE, zorder=3)
+    se = 2 * meta["R"] * df.var_pcaqs * np.sqrt(2.0 / (meta["reps"] - 1))    # +-2 Monte Carlo s.e.
+    a.errorbar(df.pred_B, df.obs_R_dVar, yerr=se, fmt="o", ms=6, color=BLUE, ecolor=BLUE,
+               elinewidth=1, capsize=3, zorder=3, label="observed $\\pm 2$ MC s.e.")
     for _, r in df.iterrows():
         a.annotate(r.functional, (r.pred_B, r.obs_R_dVar), fontsize=7,
                    xytext=(4, 3), textcoords="offset points")
-    a.set(xlabel=r"predicted between-stratum var $\sum_h\pi_h(\mu_h-\mu)^2$",
-          ylabel=r"observed $R\,[\widehat{\mathrm{Var}}_{\mathrm{SRS}}-\widehat{\mathrm{Var}}_{\mathrm{QS}}]$",
+    a.set(xlabel=r"predicted $(1-R/N)\sum_h\pi_h(\mu_h-\mu)^2$",
+          ylabel=r"observed $R\,[\mathrm{Var}_{\mathrm{SRS}}-\widehat{\mathrm{Var}}_{\mathrm{QS}}]$",
           xlim=(0, lim), ylim=(0, lim))
-    a.set_title("Theorem 2: variance reduction $=$ between-stratum variance")
+    a.set_title("variance reduction $=$ between-stratum variance")
     a.grid(True, ls=":", alpha=0.4); a.legend(fontsize=8)
     a = ax[1]
     x = np.arange(len(df))
-    a.bar(x, df.var_ratio, color=BLUE, alpha=0.85)
+    a.bar(x, df.var_ratio, color=BLUE, alpha=0.85,
+          yerr=2 * np.sqrt(2.0 / (meta["reps"] - 1)), capsize=3, ecolor="k")
     a.axhline(1.0, color=RED, ls="--", lw=1.2, label="exact (ratio $=1$)")
     a.set_xticks(x); a.set_xticklabels(df.functional, rotation=45, ha="right", fontsize=7)
     a.set(ylabel="empirical Var / Proposition formula", ylim=(0, 1.3))
-    a.set_title("Proposition: design variance matches formula"); a.legend(fontsize=8)
+    a.set_title("simulated design variance / exact formula ($\\pm2$ MC s.e.)"); a.legend(fontsize=8)
     a.grid(True, axis="y", ls=":", alpha=0.4)
-    fig.suptitle(f"Direct validation of Proposition and Theorem 2  (N={meta['N']}, k={meta['k']}, "
-                 f"m={meta['m']}, R={meta['R']}, {meta['reps']} reps)", fontsize=11)
+    fig.suptitle(f"Profile strata: N={meta['N']}, k={meta['k']}, m={meta['m']}, realized r={meta['R']}, "
+                 f"{meta['reps']} replicates", fontsize=11)
     fig.tight_layout(rect=[0, 0, 1, 0.94])
     fig.savefig(os.path.join(OUT, "variance_theorem_validation.png"), dpi=150)
     print("wrote variance_theorem_validation.png")
@@ -112,7 +120,7 @@ def plot(df, meta):
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--reps", type=int, default=3000)
+    ap.add_argument("--reps", type=int, default=1000)
     ap.add_argument("--N", type=int, default=40000)
     a = ap.parse_args()
     df, meta = run(N=a.N, reps=a.reps)

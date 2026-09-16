@@ -16,7 +16,7 @@ import numpy as np, pandas as pd
 import matplotlib; matplotlib.use("Agg"); import matplotlib.pyplot as plt
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from pcaqs import PCAQS, srs_indices
+from pcaqs import PCAQS, srs_indices, choose_design
 from pcaqs.data import anisotropic_gmm
 from pcaqs.metrics import quantile_error, exact_w2
 from joblib import Parallel, delayed
@@ -28,9 +28,10 @@ os.makedirs(OUT, exist_ok=True)
 def _quant_rep(k, Nf, delta, seed):
     gen = np.random.default_rng(seed)
     X, _ = anisotropic_gmm(Nf, random_state=int(gen.integers(1 << 31)))
-    qs = PCAQS(n_components=k, n_bins=8, retention=delta, random_state=int(gen.integers(1 << 31)))
+    qs = PCAQS(n_components=k, n_bins=5, retention=delta, random_state=int(gen.integers(1 << 31)),
+               stratification="profile")
     sc = qs.fit(X).scores(X)
-    qi = qs.sample_indices(X)
+    qi = qs.sample_indices(X, allocation="floor")
     si = srs_indices(len(X), len(qi), random_state=int(gen.integers(1 << 31)))
     return quantile_error(sc, sc[qi]), quantile_error(sc, sc[si])
 
@@ -39,14 +40,13 @@ def _w2_rep(k, n, delta, seed):
     gen = np.random.default_rng(seed)
     Nf = int(n / delta)
     X, _ = anisotropic_gmm(Nf, random_state=int(gen.integers(1 << 31)))
-    qs = PCAQS(n_components=k, n_bins=8, retention=delta, random_state=int(gen.integers(1 << 31)))
+    qs = PCAQS(n_components=k, n_bins=5, retention=delta, random_state=int(gen.integers(1 << 31)),
+               stratification="profile")
     sc = qs.fit(X).scores(X)
-    Xr, _ = anisotropic_gmm(n, random_state=int(gen.integers(1 << 31)))
+    qi = qs.sample_indices(X, allocation="floor")
+    Xr, _ = anisotropic_gmm(len(qi), random_state=int(gen.integers(1 << 31)))
     ref = qs.scores(Xr)
-    qi = qs.sample_indices(X)
-    si = srs_indices(len(X), len(qi), random_state=int(gen.integers(1 << 31)))
-    mm = min(len(qi), len(si), n)
-    return exact_w2(sc[qi][:mm], ref[:mm])
+    return exact_w2(sc[qi], ref)
 
 
 def run(reps=10, delta=0.10, ks=(2, 3), seed=20260806, jobs=-1):
@@ -122,7 +122,7 @@ def fit_and_plot(res):
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--reps", type=int, default=10)
+    ap.add_argument("--reps", type=int, default=1000)
     ap.add_argument("--ks", type=int, nargs="+", default=[2, 3])
     ap.add_argument("--jobs", type=int, default=-1)
     a = ap.parse_args()

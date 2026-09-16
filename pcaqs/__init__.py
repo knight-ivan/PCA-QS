@@ -6,6 +6,7 @@ strata under proportional allocation.
 """
 from .sampler import PCAQS, srs_indices
 from . import metrics, data
+from .design import choose_design
 
-__all__ = ["PCAQS", "srs_indices", "metrics", "data"]
+__all__ = ["PCAQS", "srs_indices", "choose_design", "metrics", "data"]
 __version__ = "0.1.0"

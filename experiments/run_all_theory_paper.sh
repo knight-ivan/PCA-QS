@@ -34,4 +34,12 @@ run synthetic_distance     confirm_synthetic_distance.py --runs 1000
 run classification_synth   confirm_classification.py --runs 1000
 cp ../figures/variance_theorem_validation.png ../../manuscript/ 2>/dev/null
 run heatmaps               make_realdata_heatmaps.py
+# --- hybrid strata, design selection, geometry (Statistics and Computing revision)
+run hybrid_sim             hybrid_study.py sim
+run hybrid_real            hybrid_study.py real select
+run downstream_selected_d5 downstream_statistics.py --design selected --delta 0.05
+run geometry               geometry_summary.py
+run metric_theory          metric_theory.py --reps 1000
+run histogram_kl           histogram_kl_check.py
+OPENBLAS_NUM_THREADS=1 run runtime            runtime_study.py
 echo "[$(date +%H:%M:%S)] PIPELINE DONE" | tee -a $LOG/pipeline.log

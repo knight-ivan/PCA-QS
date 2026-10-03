@@ -53,19 +53,44 @@ def percentile_cuts(scores, B):
 
 
 def strata_keys(scores, cuts, design):
-    """Stratum ids from cutoffs `cuts` (B-1, k): cutoff-count profile or full grid."""
+    """Stratum ids from cutoffs `cuts` (B-1, k).
+
+    design = "profile"   cutoff-count profile of all k components;
+             "grid"      full cross-classification of the k component bins;
+             "hybrid:J"  grid labels of the leading J components combined with the
+                         cutoff-count profile of the remaining k - J components
+                         ("hybrid:0" = profile, "hybrid:k" = grid).
+    """
     n, k = scores.shape
     above = scores[:, None, :] > cuts[None, :, :]
-    key = np.zeros(n, dtype=np.int64)
+    B = cuts.shape[0] + 1
     if design == "profile":
-        cnt = above.sum(axis=2)
-        for b in range(cuts.shape[0]):
-            key = key * (k + 1) + cnt[:, b]
+        J = 0
+    elif design == "grid":
+        J = k
+    elif design.startswith("hybrid:"):
+        J = int(design.split(":")[1])
+        if not 0 <= J <= k:
+            raise ValueError(f"hybrid:J needs 0 <= J <= k, got J={J}, k={k}")
     else:
-        bins = above.sum(axis=1)
-        for j in range(k):
-            key = key * (cuts.shape[0] + 1) + bins[:, j]
+        raise ValueError(design)
+    key = np.zeros(n, dtype=np.int64)
+    if J > 0:                                       # labelled bins of the leading J components
+        bins = above[:, :, :J].sum(axis=1)
+        for j in range(J):
+            key = key * B + bins[:, j]
+    if J < k:                                       # profile of the remaining components
+        cnt = above[:, :, J:].sum(axis=2)
+        for b in range(B - 1):
+            key = key * (k - J + 1) + cnt[:, b]
     return key
+
+
+def n_possible_strata(k, B, design):
+    """Number of possible strata: B^J * C(k-J+B-1, B-1)."""
+    from math import comb
+    J = 0 if design == "profile" else k if design == "grid" else int(design.split(":")[1])
+    return B ** J * comb(k - J + B - 1, B - 1)
 
 
 def floor_alloc(Nh, delta):
@@ -106,7 +131,7 @@ def design_variances(key, Phi, delta):
 
 
 # ----------------------------------------------------------------------------- rate
-def study_rate(N=4_000_000, seed=1):
+def study_rate(N=2_000_000, seed=1):
     rng = np.random.default_rng(seed)
     lam = np.array([4.0, 2.0, 1.0, 0.5, 0.5, 0.5]); k = 2
     Bs = [2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64]
@@ -383,7 +408,7 @@ def _trace_deff_and_bound(X, V, B, design, eps, zeta_norm, trZ):
     return deff
 
 
-def study_outliers(N=400_000, d=10, k=3, seed=13):
+def study_outliers(N=2_000_000, d=10, k=3, seed=13):
     """Rare extreme points break the design-effect predictions (Proposition on contamination):
     synthetic contamination sweep against the lower bound, and EEG with/without its extreme rows."""
     rng = np.random.default_rng(seed)
@@ -470,7 +495,8 @@ def study_occupancy(deltas=(0.05, 0.01)):
 
 # ----------------------------------------------------------------------------- real data
 _PROJ = os.path.dirname(os.path.dirname(_CR))
-DATA_ROOT = os.path.join(_PROJ, "LaTeX", "Final Version", "Real Data Marix Comparions csv")
+DATA_ROOT = os.environ.get("PCAQS_DATA_ROOT",
+                           os.path.join(_PROJ, "LaTeX", "Final Version", "Real Data Marix Comparions csv"))
 REAL = {   # name -> (glob, header, drop-by-name-substring, drop-by-index)
     "CreditCard": ("**/CreditCard/UCI_Credit_Card.csv", "infer", ["ID", "default"], []),
     "MAGIC": ("**/magic+gamma+telescope/magic04.csv", None, [], []),

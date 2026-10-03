@@ -37,11 +37,17 @@ X_small = X[idx]                          # subsample in the ORIGINAL feature sp
 ```
 
 Key knobs: `n_components` (k, PCs that guide stratification), `n_bins` (m, quantile
-bins per component), `retention` (delta, fraction kept per stratum). Keep
+bins per component), `retention` (delta, fraction kept per stratum), and
+`stratification` (`"profile"`, `"grid"`, or `"hybrid"` with `n_labeled=J`: bins of the leading
+J components plus the profile of the rest). Keep
 `m^k <= r`, e.g. `m <= floor(r**(1/k))`.
 
 ## Reproduce the paper's results (1000 replications each)
 
+Real data are read from the directory in the environment variable `PCAQS_DATA_ROOT`
+(set it in a local, git-ignored `local_env.sh` and `source local_env.sh` before running).
+All Monte Carlo studies use 1000 replicates; population-level studies use exact
+stratified variances on a population of 2,000,000 points.
 Every study is parallelized (`--jobs -1`) and writes summary CSVs + figures to
 `figures/`. The committed `figures/` contents are the exact records behind the
 paper's tables and figures.
@@ -61,6 +67,18 @@ python experiments/confirm_classification.py      --runs 1000   # synthetic clf,
 python experiments/confirm_classification_real.py --reps 1000   # Credit Card, APS (leakage-free, logistic)
 python experiments/confirm_regression.py          --reps 1000   # vs SRS / leverage-score / coreset
 python experiments/coef_recovery.py               --reps 1000   # coefficient stability, 5 datasets (logistic + ridge)
+
+# --- Hybrid strata, design selection and data geometry (Statistics and Computing revision) ---
+python experiments/hybrid_study.py sim                  # hybrid limits L_J vs J (population 2e6, <=50k strata)
+python experiments/hybrid_study.py real                 # labels added to the companion profile, real data (exact variances)
+python experiments/hybrid_study.py select               # choose (k, J) by the exact design variance of the feature means
+python experiments/downstream_statistics.py --design selected --delta 0.05   # standard analyses for the selected design (1000 reps)
+python experiments/geometry_summary.py                  # effective rank and variance shares of the real data
+
+# --- Discrepancy metrics: exact predictions vs simulation, leverage/coreset, runtime ---
+python experiments/metric_theory.py --reps 1000         # MMD / energy / Mahalanobis: predicted vs observed, 4 data sets
+python experiments/histogram_kl_check.py                # histogram KL / JS: second-order prediction vs observed
+python experiments/runtime_study.py                     # single-threaded time per method, six data sets
 
 # --- Figures / tables ---
 python experiments/make_result_figures.py           # synthetic distance panels + real-data heatmap

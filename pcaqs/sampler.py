@@ -9,7 +9,10 @@ its B-1 interior empirical quantiles, and the strata are either
   g_i = (sum_j 1{Z_ij > tau_j1}, ..., sum_j 1{Z_ij > tau_j,B-1}) form one stratum; at most
   C(k+B-1, B-1) strata; or
 * ``"grid"``: the full cross-classification of the per-component bins (at most B^k cells),
-  the finest PC-quantile stratification, of which every profile stratum is a union.
+  the finest PC-quantile stratification, of which every profile stratum is a union; or
+* ``"hybrid"``: the bins of the leading ``n_labeled`` = J components together with the
+  cutoff-count profile of the remaining k - J (at most B^J * C(k-J+B-1, B-1) strata);
+  J = 0 is the profile and J = k (or k - 1) the grid.
 
 Points are drawn by simple random sampling within strata, with either the companion
 paper's allocation max(1, floor(delta N_g)) (``allocation="floor"``) or an exact-size
@@ -28,8 +31,11 @@ class PCAQS:
         Number of leading principal components used to guide stratification (k).
     n_bins : int
         Number of quantile bins per component (B; 5 = quintiles in the companion paper).
-    stratification : {"profile", "grid"}
-        Cutoff-count profiles (default) or the full cross-classification.
+    stratification : {"profile", "grid", "hybrid"}
+        Cutoff-count profiles (default), the full cross-classification, or hybrid strata.
+    n_labeled : int
+        Number of leading components whose bins are kept as labels (J); used only with
+        ``stratification="hybrid"``.
     retention : float
         Fraction of points to retain within each stratum (delta), in (0, 1].
     standardize : bool
@@ -44,9 +50,12 @@ class PCAQS:
     """
 
     def __init__(self, n_components=5, n_bins=5, retention=0.05,
-                 standardize=True, random_state=None, stratification="profile"):
-        if stratification not in ("profile", "grid"):
-            raise ValueError("stratification must be 'profile' or 'grid'")
+                 standardize=True, random_state=None, stratification="profile", n_labeled=0):
+        if stratification not in ("profile", "grid", "hybrid"):
+            raise ValueError("stratification must be 'profile', 'grid' or 'hybrid'")
+        if stratification == "hybrid" and not 0 <= int(n_labeled) <= int(n_components):
+            raise ValueError("n_labeled must satisfy 0 <= n_labeled <= n_components")
+        self.n_labeled = int(n_labeled)
         self.stratification = stratification
         self.n_components = int(n_components)
         self.n_bins = int(n_bins)
@@ -96,14 +105,15 @@ class PCAQS:
         self.bin_edges_ = [q[:, j] for j in range(k)]
         above = sc[:, None, :] > q[None, :, :]                             # (n, B-1, k)
         key = np.zeros(n, dtype=np.int64)
-        if self.stratification == "profile":
-            counts = above.sum(axis=2)                                     # (n, B-1), values 0..k
-            for b in range(B - 1):
-                key = key * (k + 1) + counts[:, b]
-        else:
-            bins = above.sum(axis=1)                                       # (n, k), values 0..B-1
-            for j in range(k):
+        J = {"profile": 0, "grid": k}.get(self.stratification, self.n_labeled)
+        if J > 0:                                                          # labelled bins, 0..B-1
+            bins = above[:, :, :J].sum(axis=1)                             # (n, J)
+            for j in range(J):
                 key = key * B + bins[:, j]
+        if J < k:                                                          # profile of the rest
+            counts = above[:, :, J:].sum(axis=2)                           # (n, B-1), values 0..k-J
+            for b in range(B - 1):
+                key = key * (k - J + 1) + counts[:, b]
         return key
 
     # -- sample --------------------------------------------------------------

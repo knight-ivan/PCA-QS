@@ -18,7 +18,10 @@ Designs (--design):
   profile     cutoff-count profiles with B = 5 and k = min(k*, 10), k* the smallest k
               explaining 70% of the variance -- the companion paper's configuration;
   profile1    profile design with k = 1 (the theory's optimum for linear summaries);
-  grid        full cross-classification, k = 3, m = floor((r/10)^(1/3)).
+  grid        full cross-classification, k = 3, m = floor((r/10)^(1/3));
+  selected    hybrid strata (grid labels on the leading J components, profile of the rest)
+              with B = 5 and (k, J) chosen by the exact design variance of the feature means
+              (hybrid_study.select_design), computed from the frame before sampling.
 
 Estimates use design weights (Proposition 1). The efficiency of PCA-QS for each analysis is
 MSE_QS / MSE_SRS (< 1 favours PCA-QS) with a bootstrap 95% interval; for the means the exact
@@ -88,6 +91,10 @@ def configure(design, X, delta):
         k = int(min(np.searchsorted(cum, 0.70) + 1, 10)); B = 5
     elif design == "profile1":
         k, B = 1, 5
+    elif design == "selected":
+        from hybrid_study import select_design
+        best = select_design(X, delta).iloc[0]
+        return int(best.k), 5, lam, f"hybrid:{int(best.J)}"
     else:
         k = 3; B = grid_bins(delta * N, k)
     return k, B, lam
@@ -95,11 +102,13 @@ def configure(design, X, delta):
 
 def run_dataset(name, design, delta, reps, jobs, seed=20260915):
     X = load_real(name); N, d = X.shape
-    k, B, lam = configure(design, X, delta)
+    conf = configure(design, X, delta)
+    k, B, lam = conf[:3]
+    strat = conf[3] if len(conf) > 3 else ("grid" if design == "grid" else "profile")
     V, _ = pc_directions(X, k)
     rho = lam[:k].sum() / lam.sum()
     sc = X @ V
-    key = strata_keys(sc, percentile_cuts(sc, B), "grid" if design == "grid" else "profile")
+    key = strata_keys(sc, percentile_cuts(sc, B), strat)
     uniq, inv, Nh = np.unique(key, return_inverse=True, return_counts=True)
     rh = floor_alloc(Nh, delta)
     r = int(rh.sum())
@@ -111,7 +120,11 @@ def run_dataset(name, design, delta, reps, jobs, seed=20260915):
         Sh2[:, j] = np.where(Nh > 1, (s2 - s1 ** 2 / Nh) / np.maximum(Nh - 1, 1), 0.0)
     exact_qs = float((((Nh / N) ** 2 * (1 - rh / Nh))[:, None] * Sh2 / rh[:, None]).sum())
     exact_srs = float((1 - r / N) * X.var(0, ddof=1).sum() / r)
-    predicted = 1 - rho / k if design != "grid" else 1 - rho
+    if strat.startswith("hybrid:"):
+        from hybrid_study import hybrid_limit
+        predicted = hybrid_limit(lam, k, int(strat.split(":")[1]))
+    else:
+        predicted = 1 - rho / k if design != "grid" else 1 - rho
     res = Parallel(n_jobs=jobs)(delayed(one_rep)(X, inv, Nh, rh, starts, full, seed + i)
                                 for i in range(reps))
     LQ = pd.DataFrame([a for a, _ in res]); LS = pd.DataFrame([b for _, b in res])
@@ -120,7 +133,7 @@ def run_dataset(name, design, delta, reps, jobs, seed=20260915):
     for c in LQ.columns:
         q, s = LQ[c].to_numpy(), LS[c].to_numpy()
         boot = [q[i].mean() / s[i].mean() for i in (rng.integers(0, reps, reps) for _ in range(500))]
-        rows.append(dict(dataset=name, design=design, N=N, d=d, k=k, B=B, delta=delta, r=r,
+        rows.append(dict(dataset=name, design=design, strata=strat, N=N, d=d, k=k, B=B, delta=delta, r=r,
                          realized_retention=r / N, H_N=len(Nh), singletons=int((Nh == 1).sum()),
                          rho_k=rho, exact_mean_ratio=exact_qs / exact_srs, gaussian_limit=predicted,
                          reps=reps, analysis=c, mse_QS=q.mean(), mse_SRS=s.mean(),
@@ -133,7 +146,7 @@ def run_dataset(name, design, delta, reps, jobs, seed=20260915):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--datasets", nargs="+", default=list(REAL))
-    ap.add_argument("--design", choices=["profile", "profile1", "grid"], default="profile")
+    ap.add_argument("--design", choices=["profile", "profile1", "grid", "selected"], default="profile")
     ap.add_argument("--delta", type=float, default=0.05)
     ap.add_argument("--reps", type=int, default=1000)
     ap.add_argument("--jobs", type=int, default=-1)

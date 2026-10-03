@@ -72,6 +72,11 @@ python experiments/hybrid_study.py select               # choose (k, J) by the e
 python experiments/downstream_statistics.py --design selected --delta 0.05   # standard analyses for the selected design (1000 reps)
 python experiments/geometry_summary.py                  # effective rank and variance shares of the real data
 
+# --- Discrepancy metrics: exact predictions vs simulation, leverage/coreset, runtime ---
+python experiments/metric_theory.py --reps 1000         # MMD / energy / Mahalanobis: predicted vs observed, 4 data sets
+python experiments/histogram_kl_check.py                # histogram KL / JS: second-order prediction vs observed
+python experiments/runtime_study.py                     # single-threaded time per method, six data sets
+
 # --- Figures / tables ---
 python experiments/make_result_figures.py           # synthetic distance panels + real-data heatmap
 python experiments/make_detail_table.py             # consolidated corrected metric table

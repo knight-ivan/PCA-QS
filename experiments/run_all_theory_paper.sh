@@ -39,4 +39,7 @@ run hybrid_sim             hybrid_study.py sim
 run hybrid_real            hybrid_study.py real select
 run downstream_selected_d5 downstream_statistics.py --design selected --delta 0.05
 run geometry               geometry_summary.py
+run metric_theory          metric_theory.py --reps 1000
+run histogram_kl           histogram_kl_check.py
+OPENBLAS_NUM_THREADS=1 run runtime            runtime_study.py
 echo "[$(date +%H:%M:%S)] PIPELINE DONE" | tee -a $LOG/pipeline.log

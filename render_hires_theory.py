@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Re-render Figure 2 (theory_validation.png) at 600 dpi from the committed CSVs in figures/,
-without re-running any simulation, and copy it to the manuscript as Fig2_theory.png."""
+without re-running any simulation, and copy it to ../manuscript/figures/Fig2_theory.png when that folder exists."""
 import os, sys, shutil
 import matplotlib; matplotlib.use("Agg")
 import matplotlib.figure
@@ -14,5 +14,7 @@ matplotlib.figure.Figure.savefig = _hires
 import theory_validation as tv
 tv.make_figures()
 src = os.path.join(HERE, "figures", "theory_validation.png")
-shutil.copy(src, os.path.join(os.path.dirname(HERE), "Fig2_theory.png"))
+dst = os.path.join(os.path.dirname(HERE), "manuscript", "figures", "Fig2_theory.png")
+if os.path.isdir(os.path.dirname(dst)):
+    shutil.copy(src, dst)
 print("copied", src)

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Computing time of PCA-QS and the comparison designs on the six real data sets.
 
-Single-threaded (BLAS threads = 1), median of 5 runs, delta = 0.05, standardized data in memory.
+Single-threaded (BLAS threads = 1), median of 1000 runs, delta = 0.05, standardized data in memory.
 PCA-QS steps: principal directions (covariance eigendecomposition, O(N d^2 + d^3)), scores and
 cutoffs (O(N d k + k N log N)), stratum labels (O(N k m)), allocation and within-stratum sampling
 (O(N)). Leverage/coreset: thin QR of the N x (d+1) design (O(N d^2)) and weighted draws.
@@ -53,7 +53,7 @@ def leverage_draw(X, r, rng, weighted):
     return time.perf_counter() - t0
 
 
-def main(delta=0.05, runs=5):
+def main(delta=0.05, runs=1000):
     rows = []
     for name in REAL:
         X = load_real(name); N, d = X.shape

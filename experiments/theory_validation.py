@@ -131,7 +131,7 @@ def design_variances(key, Phi, delta):
 
 
 # ----------------------------------------------------------------------------- rate
-def study_rate(N=4_000_000, seed=1):
+def study_rate(N=2_000_000, seed=1):
     rng = np.random.default_rng(seed)
     lam = np.array([4.0, 2.0, 1.0, 0.5, 0.5, 0.5]); k = 2
     Bs = [2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64]
@@ -408,7 +408,7 @@ def _trace_deff_and_bound(X, V, B, design, eps, zeta_norm, trZ):
     return deff
 
 
-def study_outliers(N=400_000, d=10, k=3, seed=13):
+def study_outliers(N=2_000_000, d=10, k=3, seed=13):
     """Rare extreme points break the design-effect predictions (Proposition on contamination):
     synthetic contamination sweep against the lower bound, and EEG with/without its extreme rows."""
     rng = np.random.default_rng(seed)

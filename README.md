@@ -44,7 +44,10 @@ J components plus the profile of the rest). Keep
 
 ## Reproduce the paper's results (1000 replications each)
 
-Real data are read from the directory in the environment variable `PCAQS_DATA_ROOT`.
+Real data are read from the directory in the environment variable `PCAQS_DATA_ROOT`
+(set it in a local, git-ignored `local_env.sh` and `source local_env.sh` before running).
+All Monte Carlo studies use 1000 replicates; population-level studies use exact
+stratified variances on a population of 2,000,000 points.
 Every study is parallelized (`--jobs -1`) and writes summary CSVs + figures to
 `figures/`. The committed `figures/` contents are the exact records behind the
 paper's tables and figures.
